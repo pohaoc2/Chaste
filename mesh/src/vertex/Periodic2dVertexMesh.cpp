@@ -33,10 +33,10 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 */
 
-#include "Cylindrical2dVertexMesh.hpp"
+#include "Periodic2dVertexMesh.hpp"
 #include "Cylindrical2dMesh.hpp"
 
-Cylindrical2dVertexMesh::Cylindrical2dVertexMesh(double width,
+Periodic2dVertexMesh::Periodic2dVertexMesh(double width,
                                                  std::vector<Node<2>*> nodes,
                                                  std::vector<VertexElement<2, 2>*> vertexElements,
                                                  double cellRearrangementThreshold,
@@ -49,7 +49,7 @@ Cylindrical2dVertexMesh::Cylindrical2dVertexMesh(double width,
     ReMesh();
 }
 
-Cylindrical2dVertexMesh::Cylindrical2dVertexMesh(Cylindrical2dMesh& rMesh, bool isBounded)
+Periodic2dVertexMesh::Periodic2dVertexMesh(Cylindrical2dMesh& rMesh, bool isBounded)
     : mWidth(rMesh.GetWidth(0)),
       mpMeshForVtk(nullptr)
 {
@@ -342,12 +342,12 @@ Cylindrical2dVertexMesh::Cylindrical2dVertexMesh(Cylindrical2dMesh& rMesh, bool 
     this->mMeshChangesDuringSimulation = false;
 }
 
-Cylindrical2dVertexMesh::Cylindrical2dVertexMesh()
+Periodic2dVertexMesh::Periodic2dVertexMesh()
     : mpMeshForVtk(nullptr)
 {
 }
 
-Cylindrical2dVertexMesh::~Cylindrical2dVertexMesh()
+Periodic2dVertexMesh::~Periodic2dVertexMesh()
 {
     if (mpMeshForVtk != nullptr)
     {
@@ -355,7 +355,7 @@ Cylindrical2dVertexMesh::~Cylindrical2dVertexMesh()
     }
 }
 
-c_vector<double, 2> Cylindrical2dVertexMesh::GetVectorFromAtoB(const c_vector<double, 2>& rLocation1, const c_vector<double, 2>& rLocation2)
+c_vector<double, 2> Periodic2dVertexMesh::GetVectorFromAtoB(const c_vector<double, 2>& rLocation1, const c_vector<double, 2>& rLocation2)
 {
     assert(mWidth > 0.0);
 
@@ -387,7 +387,7 @@ c_vector<double, 2> Cylindrical2dVertexMesh::GetVectorFromAtoB(const c_vector<do
     return vector;
 }
 
-void Cylindrical2dVertexMesh::SetNode(unsigned nodeIndex, ChastePoint<2> point)
+void Periodic2dVertexMesh::SetNode(unsigned nodeIndex, ChastePoint<2> point)
 {
     double x_coord = point.rGetLocation()[0];
 
@@ -425,7 +425,7 @@ void Cylindrical2dVertexMesh::SetNode(unsigned nodeIndex, ChastePoint<2> point)
 
 }
 
-double Cylindrical2dVertexMesh::GetWidth(const unsigned& rDimension) const
+double Periodic2dVertexMesh::GetWidth(const unsigned& rDimension) const
 {
     double width = 0.0;
     assert(rDimension==0 || rDimension==1);
@@ -440,7 +440,7 @@ double Cylindrical2dVertexMesh::GetWidth(const unsigned& rDimension) const
     return width;
 }
 
-unsigned Cylindrical2dVertexMesh::AddNode(Node<2>* pNewNode)
+unsigned Periodic2dVertexMesh::AddNode(Node<2>* pNewNode)
 {
     CheckNodeLocation(pNewNode);
 
@@ -449,7 +449,7 @@ unsigned Cylindrical2dVertexMesh::AddNode(Node<2>* pNewNode)
     return node_index;
 }
 
-void Cylindrical2dVertexMesh::CheckNodeLocation(Node<2>* pNode)
+void Periodic2dVertexMesh::CheckNodeLocation(Node<2>* pNode)
 {
     double x_location = pNode->rGetLocation()[0];
     if (x_location < 0)
@@ -472,7 +472,7 @@ void Cylindrical2dVertexMesh::CheckNodeLocation(Node<2>* pNode)
 
 }
 
-void Cylindrical2dVertexMesh::Scale(const double xScale, const double yScale, const double zScale)
+void Periodic2dVertexMesh::Scale(const double xScale, const double yScale, const double zScale)
 {
     assert(zScale == 1.0);
 
@@ -482,7 +482,7 @@ void Cylindrical2dVertexMesh::Scale(const double xScale, const double yScale, co
     mWidth *= xScale;
 }
 
-VertexMesh<2, 2>* Cylindrical2dVertexMesh::GetMeshForVtk()
+VertexMesh<2, 2>* Periodic2dVertexMesh::GetMeshForVtk()
 {
     unsigned num_nodes = GetNumNodes();
 
@@ -608,4 +608,4 @@ VertexMesh<2, 2>* Cylindrical2dVertexMesh::GetMeshForVtk()
 
 // Serialization for Boost >= 1.36
 #include "SerializationExportWrapperForCpp.hpp"
-CHASTE_CLASS_EXPORT(Cylindrical2dVertexMesh)
+CHASTE_CLASS_EXPORT(Periodic2dVertexMesh)
