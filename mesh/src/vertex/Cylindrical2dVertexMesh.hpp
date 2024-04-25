@@ -58,6 +58,7 @@ private:
 
     /** The circumference of the cylinder. */
     double mWidth;
+    double mHeight;
 
     /**
      * Auxiliary mesh pointer, created/updated when GetMeshForVtk() is called
@@ -82,6 +83,7 @@ private:
     {
         archive & boost::serialization::base_object<MutableVertexMesh<2,2> >(*this);
         archive & mWidth;
+        archive & mHeight;
     }
 
     /**
@@ -101,11 +103,17 @@ public:
      * @param t2Threshold the maximum threshold distance for Type 2 swaps (defaults to 0.001)
      */
     Cylindrical2dVertexMesh(double width,
+                            double height,
                             std::vector<Node<2>*> nodes,
                             std::vector<VertexElement<2,2>*> vertexElements,
                             double cellRearrangementThreshold=0.01,
                             double t2Threshold=0.001);
-
+                            
+    Cylindrical2dVertexMesh(double width,
+                            std::vector<Node<2>*> nodes,
+                            std::vector<VertexElement<2,2>*> vertexElements,
+                            double cellRearrangementThreshold=0.01,
+                            double t2Threshold=0.001);
     /**
      * Alternative constructor. Creates a Voronoi tessellation of a given Cylindrical2dMesh,
      * which must be Delaunay (see TetrahedralMesh::CheckIsVoronoi).

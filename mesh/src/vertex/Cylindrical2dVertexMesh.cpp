@@ -37,12 +37,28 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "Cylindrical2dMesh.hpp"
 
 Cylindrical2dVertexMesh::Cylindrical2dVertexMesh(double width,
+                                                 double height,
                                                  std::vector<Node<2>*> nodes,
                                                  std::vector<VertexElement<2, 2>*> vertexElements,
                                                  double cellRearrangementThreshold,
                                                  double t2Threshold)
     : MutableVertexMesh<2,2>(nodes, vertexElements, cellRearrangementThreshold, t2Threshold),
       mWidth(width),
+      mHeight(height),
+      mpMeshForVtk(nullptr)
+{
+    // Call ReMesh() to remove any deleted nodes and relabel
+    ReMesh();
+}
+
+Cylindrical2dVertexMesh::Cylindrical2dVertexMesh(double width,
+                                                 std::vector<Node<2>*> nodes,
+                                                 std::vector<VertexElement<2, 2>*> vertexElements,
+                                                 double cellRearrangementThreshold,
+                                                 double t2Threshold)
+    : MutableVertexMesh<2,2>(nodes, vertexElements, cellRearrangementThreshold, t2Threshold),
+      mWidth(width),
+      mHeight(0.0),
       mpMeshForVtk(nullptr)
 {
     // Call ReMesh() to remove any deleted nodes and relabel
@@ -358,6 +374,7 @@ Cylindrical2dVertexMesh::~Cylindrical2dVertexMesh()
 c_vector<double, 2> Cylindrical2dVertexMesh::GetVectorFromAtoB(const c_vector<double, 2>& rLocation1, const c_vector<double, 2>& rLocation2)
 {
     assert(mWidth > 0.0);
+    assert(mHeight > 0.0);
 
     c_vector<double, 2> vector = rLocation2 - rLocation1;
     vector[0] = fmod(vector[0], mWidth);
@@ -372,16 +389,19 @@ c_vector<double, 2> Cylindrical2dVertexMesh::GetVectorFromAtoB(const c_vector<do
         vector[0] += mWidth;
     }
 
-    vector[1] = fmod(vector[1], mWidth);
+    vector[1] = fmod(vector[1], mHeight);
 
     // If the points are more than halfway around the cylinder apart, measure the other way
-    if (vector[1] > 0.5 * mWidth)
+    if mHeight > 0.0
     {
-        vector[1] -= mWidth;
-    }
-    else if (vector[1] < -0.5 * mWidth)
-    {
-        vector[1] += mWidth;
+        if (vector[1] > 0.5 * mHeight)
+        {
+            vector[1] -= mHeight;
+        }
+        else if (vector[1] < -0.5 * mHeight)
+        {
+            vector[1] += mHeight;
+        }
     }
 
     return vector;
@@ -405,20 +425,23 @@ void Cylindrical2dVertexMesh::SetNode(unsigned nodeIndex, ChastePoint<2> point)
 
     // Update the node's location
     //MutableVertexMesh<2,2>::SetNode(nodeIndex, point);
-    
-    double y_coord = point.rGetLocation()[1];
+    if mHeight > 0.0
+    {
+        double y_coord = point.rGetLocation()[1];
 
-    // Perform a periodic movement if necessary
-    if (y_coord >= mWidth)
-    {
-        // Move point to the left
-        point.SetCoordinate(1, y_coord - mWidth);
+        // Perform a periodic movement if necessary
+        if (y_coord >= mHeight)
+        {
+            // Move point to the left
+            point.SetCoordinate(1, y_coord - mHeight);
+        }
+        else if (y_coord < 0.0)
+        {
+            // Move point to the righ
+            point.SetCoordinate(1, y_coord + mHeight);
+        }
     }
-    else if (y_coord < 0.0)
-    {
-        // Move point to the righ
-        point.SetCoordinate(1, y_coord + mWidth);
-    }
+
 
     // Update the node's location
     MutableVertexMesh<2,2>::SetNode(nodeIndex, point);
@@ -433,12 +456,21 @@ double Cylindrical2dVertexMesh::GetWidth(const unsigned& rDimension) const
     {
         width = mWidth;
     }
-    else
+    else if (rDimension==1)
     {
-        width = VertexMesh<2,2>::GetWidth(rDimension);
+        if mHeight > 0.0
+        {
+            width = mHeight;
+        }
+        else
+        {
+            width = VertexMesh<2,2>::GetWidth(rDimension);
+        }
     }
+
     return width;
 }
+
 
 unsigned Cylindrical2dVertexMesh::AddNode(Node<2>* pNewNode)
 {
@@ -460,14 +492,17 @@ void Cylindrical2dVertexMesh::CheckNodeLocation(Node<2>* pNode)
     {
         pNode->rGetModifiableLocation()[0] = x_location - mWidth;
     }
-    double y_location = pNode->rGetLocation()[1];
-    if (y_location < 0)
+    if mHeight > 0.0
     {
-        pNode->rGetModifiableLocation()[1] = y_location + mWidth;
-    }
-    else if (y_location >= mWidth)
-    {
-        pNode->rGetModifiableLocation()[1] = y_location - mWidth;
+        double y_location = pNode->rGetLocation()[1];
+        if (y_location < 0)
+        {
+            pNode->rGetModifiableLocation()[1] = y_location + mHeight;
+        }
+        else if (y_location >= mHeight)
+        {
+            pNode->rGetModifiableLocation()[1] = y_location - mHeight;
+        }
     }
 
 }
@@ -480,6 +515,7 @@ void Cylindrical2dVertexMesh::Scale(const double xScale, const double yScale, co
 
     // Also rescale the width of the mesh (this effectively scales the domain)
     mWidth *= xScale;
+    mHeight *= yScale;
 }
 
 VertexMesh<2, 2>* Cylindrical2dVertexMesh::GetMeshForVtk()

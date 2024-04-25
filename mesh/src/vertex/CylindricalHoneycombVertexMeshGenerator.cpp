@@ -38,7 +38,8 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/shared_ptr.hpp>
 
 CylindricalHoneycombVertexMeshGenerator::CylindricalHoneycombVertexMeshGenerator(AbstractMeshReader<2, 2>& rMeshReader,
-                                                            unsigned width,
+                                                            double width,
+                                                            double height,
                                                            double cellRearrangementThreshold,
                                                            double t2Threshold)
 {
@@ -86,7 +87,7 @@ CylindricalHoneycombVertexMeshGenerator::CylindricalHoneycombVertexMeshGenerator
         }
     }
     //GenerateEdgesFromElements(elements);
-    mpMesh = boost::make_shared<Cylindrical2dVertexMesh>(width, nodes, elements, cellRearrangementThreshold, t2Threshold);
+    mpMesh = boost::make_shared<Cylindrical2dVertexMesh>(width, height, nodes, elements, cellRearrangementThreshold, t2Threshold);
 }
 
 

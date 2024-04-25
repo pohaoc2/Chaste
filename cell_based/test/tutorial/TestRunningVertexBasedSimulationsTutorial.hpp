@@ -204,10 +204,11 @@ public:
          * is 4 elements (i.e. cells) wide, and 4 elements high.
          */
         double width = 10.5;
+        double height = 10.5;
 
         VertexMeshReader<2,2> mesh_reader("mesh/test/data/TestVertexMeshWriter/hexgons");
         //Periodic2dVertexMesh<2,2> mesh(mesh_reader);
-        CylindricalHoneycombVertexMeshGenerator generator(mesh_reader, width);    // Parameters are: cells across, cells up
+        CylindricalHoneycombVertexMeshGenerator generator(mesh_reader, width, height);    // Parameters are: cells across, cells up
         //mesh.ConstructFromMeshReader(mesh_reader);
         boost::shared_ptr<Cylindrical2dVertexMesh> p_mesh = generator.GetCylindricalMesh();
 
