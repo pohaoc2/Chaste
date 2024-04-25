@@ -37,103 +37,55 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/make_shared.hpp>
 #include <boost/shared_ptr.hpp>
 
-PeriodicHoneycombVertexMeshGenerator::PeriodicHoneycombVertexMeshGenerator(unsigned numElementsAcross,
-                                                           unsigned numElementsUp,
-                                                           bool isFlatBottom,
+PeriodicHoneycombVertexMeshGenerator::PeriodicHoneycombVertexMeshGenerator(AbstractMeshReader<2, 2>& rMeshReader,
                                                            double cellRearrangementThreshold,
                                                            double t2Threshold)
 {
-    // numElementsAcross must be even for cylindrical meshes
-    ///\todo This should be an exception (#2401)
-    assert(numElementsAcross > 1);
-    assert(numElementsAcross%2 == 0);
-
-    assert(numElementsUp > 0);
     assert(cellRearrangementThreshold > 0.0);
     assert(t2Threshold > 0.0);
 
     std::vector<Node<2>*> nodes;
-    std::vector<VertexElement<2,2>*>  elements;
+    std::vector<VertexElement<2,2>*> elements;
+    std::vector<double> node_data;
+    unsigned num_nodes = rMeshReader.GetNumNodes();
+    unsigned num_elements = rMeshReader.GetNumElements();
 
-    unsigned node_index = 0;
-    unsigned node_indices[6];
-    unsigned element_index;
 
-    // Create the nodes
-    for (unsigned j=0; j<=2*numElementsUp+1; j++)
+    for (unsigned i = 0; i < num_nodes; i++)
     {
-        if (isFlatBottom && (j==1))
-        {
-            // Flat bottom to cylindrical mesh
-            for (unsigned i=0; i<=numElementsAcross-1; i++)
-            {
-                Node<2>* p_node = new Node<2>(node_index, true, i, 0.0);
-                nodes.push_back(p_node);
-                node_index++;
-            }
-        }
-        /*
-         * On each interior row we have numElementsAcross+1 nodes. All nodes on the first, second,
-         * penultimate and last rows are boundary nodes. On other rows no nodes are boundary nodes.
-         */
-        else
-        {
-            for (unsigned i=0; i<=numElementsAcross-1; i++)
-            {
-                double x_coord = ((j%4 == 0)||(j%4 == 3)) ? i+0.5 : i;
-                double y_coord = (1.5*j - 0.5*(j%2))*0.5/sqrt(3.0);
-                bool is_boundary_node = (j==0 || j==1 || j==2*numElementsUp || j==2*numElementsUp+1) ? false : false;
+        node_data = rMeshReader.GetNextNode();
+        unsigned is_boundary_node = (bool)node_data[2];
+        node_data.pop_back();
+        nodes.push_back(new Node<2>(i, node_data, is_boundary_node));
+    }
+    rMeshReader.Reset();
 
-                Node<2>* p_node = new Node<2>(node_index, is_boundary_node , x_coord, y_coord);
-                nodes.push_back(p_node);
-                node_index++;
-            }
+    for (unsigned elem_index = 0; elem_index < num_elements; elem_index++)
+    {
+        // Get the data for this element
+        ElementData element_data = rMeshReader.GetNextElementData();
+
+        // Get the nodes owned by this element
+        std::vector<Node<2>*> element_nodes;
+        unsigned num_nodes_in_element = element_data.NodeIndices.size();
+        for (unsigned j = 0; j < num_nodes_in_element; j++)
+        {
+            element_nodes.push_back(nodes[element_data.NodeIndices[j]]);
+        }
+
+        // Use nodes and index to construct this element
+        VertexElement<2, 2>* p_element = new VertexElement<2, 2>(elem_index, element_nodes);
+        elements.push_back(p_element);
+
+        if (rMeshReader.GetNumElementAttributes() > 0)
+        {
+            assert(rMeshReader.GetNumElementAttributes() == 1);
+            unsigned attribute_value = (unsigned)element_data.AttributeValue;
+            p_element->SetAttribute(attribute_value);
         }
     }
-
-    /*
-     * Create the elements. The array node_indices contains the
-     * global node indices from bottom, going anticlockwise.
-     */
-    for (unsigned j=0; j<numElementsUp; j++)
-    {
-        for (unsigned i=0; i<numElementsAcross; i++)
-        {
-            element_index = j*numElementsAcross + i;
-
-            node_indices[0] = 2*j*numElementsAcross + i + 1*(j%2==1);
-            node_indices[1] = node_indices[0] + numElementsAcross + 1*(j%2==0);
-            node_indices[2] = node_indices[0] + 2*numElementsAcross + 1*(j%2==0);
-            node_indices[3] = node_indices[0] + 3*numElementsAcross;
-            node_indices[4] = node_indices[0] + 2*numElementsAcross - 1*(j%2==1);
-            node_indices[5] = node_indices[0] + numElementsAcross - 1*(j%2==1);
-
-            if (i==numElementsAcross-1) // on far right
-            {
-                node_indices[0] -= numElementsAcross*(j%2==1);
-                node_indices[1] -= numElementsAcross;
-                node_indices[2] -= numElementsAcross;
-                node_indices[3] -= numElementsAcross*(j%2==1);
-            }
-
-            std::vector<Node<2>*> element_nodes;
-            for (unsigned k=0; k<6; k++)
-            {
-               element_nodes.push_back(nodes[node_indices[k]]);
-            }
-            VertexElement<2,2>* p_element = new VertexElement<2,2>(element_index, element_nodes);
-            elements.push_back(p_element);
-        }
-    }
-
-    // If imposing a flat bottom, delete unnecessary nodes from the mesh
-    if (isFlatBottom)
-    {
-        for (unsigned i=0; i<numElementsAcross; i++)
-        {
-            nodes[i]->SetPoint(nodes[i+numElementsAcross]->GetPoint());
-        }
-    }
+    GenerateEdgesFromElements(elements);
+    unsinged numElementsAcross = 4;
     mpMesh = boost::make_shared<Periodic2dVertexMesh>(numElementsAcross, nodes, elements, cellRearrangementThreshold, t2Threshold);
 }
 

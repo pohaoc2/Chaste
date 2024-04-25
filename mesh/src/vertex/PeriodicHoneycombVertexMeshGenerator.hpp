@@ -63,9 +63,7 @@ public:
      * @param cellRearrangementThreshold the minimum threshold distance for element rearrangement (defaults to 0.01)
      * @param t2Threshold the maximum threshold distance for Type 2 swaps (defaults to 0.001)
      */
-    PeriodicHoneycombVertexMeshGenerator(unsigned numElementsAcross,
-                                 unsigned numElementsUp,
-                                 bool isFlatBottom=false,
+    PeriodicHoneycombVertexMeshGenerator(AbstractMeshReader<2, 2>& rMeshReader,
                                  double cellRearrangementThreshold=0.01,
                                  double t2Threshold=0.001);
     /**

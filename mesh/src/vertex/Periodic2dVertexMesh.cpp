@@ -482,6 +482,12 @@ void Periodic2dVertexMesh::Scale(const double xScale, const double yScale, const
     mWidth *= xScale;
 }
 
+void Periodic2dVertexMesh::ConstructFromMeshReader(AbstractMeshReader<2, 2>& rMeshReader)
+{
+
+}
+
+
 VertexMesh<2, 2>* Periodic2dVertexMesh::GetMeshForVtk()
 {
     unsigned num_nodes = GetNumNodes();

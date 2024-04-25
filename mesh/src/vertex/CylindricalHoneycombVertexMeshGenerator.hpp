@@ -68,6 +68,11 @@ public:
                                  bool isFlatBottom=false,
                                  double cellRearrangementThreshold=0.01,
                                  double t2Threshold=0.001);
+                                 
+    CylindricalHoneycombVertexMeshGenerator(AbstractMeshReader<2, 2>& rMeshReader,
+                                                            unsigned width=4,
+                                                           double cellRearrangementThreshold=0.01,
+                                                           double t2Threshold=0.001);
     /**
      * @return a 2D honeycomb mesh
      */

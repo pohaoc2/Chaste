@@ -50,6 +50,7 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * GetVectorFromAtoB() so that simulation classes can treat this
  * class in exactly the same way as a MutableMesh<2,2>.
  */
+
 class Periodic2dVertexMesh : public MutableVertexMesh<2,2>
 {
     friend class TestCylindrical2dVertexMesh;
@@ -105,8 +106,6 @@ public:
                             std::vector<VertexElement<2,2>*> vertexElements,
                             double cellRearrangementThreshold=0.01,
                             double t2Threshold=0.001);
-
-    Periodic2dVertexMesh(AbstractMeshReader<2, 2>& rMeshReader);
 
     /**
      * Alternative constructor. Creates a Voronoi tessellation of a given Cylindrical2dMesh,
