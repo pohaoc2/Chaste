@@ -74,7 +74,6 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /* The next two header files define a helper class for generating suitable meshes: one planar and one periodic. */
 #include "HoneycombVertexMeshGenerator.hpp"
 #include "CylindricalHoneycombVertexMeshGenerator.hpp"
-#include "PeriodicHoneycombVertexMeshGenerator.hpp"
 /* The next header file defines a vertex-based `CellPopulation` class.*/
 #include "VertexBasedCellPopulation.hpp"
 /* The next header file defines a force law for describing the mechanical interactions
@@ -203,13 +202,11 @@ public:
          * Here the first and second arguments define the size of the mesh - we have chosen a mesh that
          * is 4 elements (i.e. cells) wide, and 4 elements high.
          */
-        double width = 10.5;
-        double height = 10.5;
+        double width = 6;//12;
+        double height = 5.196;//7 * sqrt(3.0);
 
-        VertexMeshReader<2,2> mesh_reader("mesh/test/data/TestVertexMeshWriter/hexgons");
-        //Periodic2dVertexMesh<2,2> mesh(mesh_reader);
+        VertexMeshReader<2,2> mesh_reader("/home/pohaoc2/UW/bagherilab/Chaste/cell_based/test/data/TestCustomMesh/hexgons");
         CylindricalHoneycombVertexMeshGenerator generator(mesh_reader, width, height);    // Parameters are: cells across, cells up
-        //mesh.ConstructFromMeshReader(mesh_reader);
         boost::shared_ptr<Cylindrical2dVertexMesh> p_mesh = generator.GetCylindricalMesh();
 
         /* Having created a mesh, we now create a `std::vector` of `CellPtr`s.
@@ -228,22 +225,32 @@ public:
         /* As always we then pass the cell population into an `OffLatticeSimulation`,
          * and set the output directory, output multiple and end time. */
         OffLatticeSimulation<2> simulator(cell_population);
-        simulator.SetOutputDirectory("VertexBasedPeriodicMonolayer");
+        simulator.SetOutputDirectory("VertexBasedPeriodicMonolayerCustom");
         simulator.SetSamplingTimestepMultiple(50);
         simulator.SetDt(0.01);
-        simulator.SetEndTime(50);
+        simulator.SetEndTime(0.01);
 
         /* We now make a pointer to an appropriate force and pass it to the
          * `OffLatticeSimulation`.
          */
         //MAKE_PTR(NagaiHondaForce<2>, p_force);
         MAKE_PTR(FarhadifarForce<2>, p_force);
-        simulator.AddForce(p_force);
 
-        /* We also make a pointer to a target area modifier and add it to the simulator.
-         */
-        MAKE_PTR(SimpleTargetAreaModifier<2>, p_growth_modifier);
-        //simulator.AddSimulationModifier(p_growth_modifier);
+        double elasticity = 1.0;
+        double target_area = 1.0;
+        double contractility = 0.4;
+        double line_tension = 0.12;
+        double bd_line_tension = 0.12;
+
+        p_force->SetAreaElasticityParameter(elasticity);
+        p_force->SetTargetAreaParameter(target_area);
+
+        p_force->SetPerimeterContractilityParameter(contractility);
+        
+        p_force->SetLineTensionParameter(line_tension);
+        p_force->SetBoundaryLineTensionParameter(bd_line_tension);
+
+        simulator.AddForce(p_force);
 
         /* To run the simulation, we call `Solve()`. */
         simulator.Solve();
