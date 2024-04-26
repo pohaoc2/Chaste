@@ -202,8 +202,8 @@ public:
          * Here the first and second arguments define the size of the mesh - we have chosen a mesh that
          * is 4 elements (i.e. cells) wide, and 4 elements high.
          */
-        double width = 6;//12;
-        double height = 5.196;//7 * sqrt(3.0);
+        double width = 12;//12;
+        double height = 12.124;//7 * sqrt(3.0);
 
         VertexMeshReader<2,2> mesh_reader("/home/pohaoc2/UW/bagherilab/Chaste/cell_based/test/data/TestCustomMesh/hexgons");
         CylindricalHoneycombVertexMeshGenerator generator(mesh_reader, width, height);    // Parameters are: cells across, cells up
@@ -228,7 +228,7 @@ public:
         simulator.SetOutputDirectory("VertexBasedPeriodicMonolayerCustom");
         simulator.SetSamplingTimestepMultiple(50);
         simulator.SetDt(0.01);
-        simulator.SetEndTime(0.01);
+        simulator.SetEndTime(10);
 
         /* We now make a pointer to an appropriate force and pass it to the
          * `OffLatticeSimulation`.

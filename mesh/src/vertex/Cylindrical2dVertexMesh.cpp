@@ -524,7 +524,6 @@ VertexMesh<2, 2>* Cylindrical2dVertexMesh::GetMeshForVtk()
 
     std::vector<Node<2>*> temp_nodes(9 * num_nodes);
     std::vector<VertexElement<2, 2>*> elements;
-    std::cout << "mHeight = " << mHeight << "\n";
     // Create five copies of each node
     for (unsigned index=0; index<num_nodes; index++)
     {
@@ -651,11 +650,7 @@ VertexMesh<2, 2>* Cylindrical2dVertexMesh::GetMeshForVtk()
                 bool node_is_top_of_centre = (elem_iter->GetNode(local_index)->rGetLocation()[1] - 0.5 * mHeight > 0);
                 if (!node_is_top_of_centre && element_centre_on_top)
                 {   
-                    std::cout << temp_nodes[this_node_index]->rGetLocation() << "\n";
                     this_node_index += 3 * num_nodes;
-                    std::cout << "this_node_index = " << this_node_index << "\n";
-                    std::cout << temp_nodes[this_node_index]->rGetLocation() << "\n";
-                    std::cout << "=====================\n"; 
                 }
                 else if (node_is_top_of_centre && !element_centre_on_top)
                 {
@@ -708,7 +703,6 @@ VertexMesh<2, 2>* Cylindrical2dVertexMesh::GetMeshForVtk()
         {
             temp_nodes[index]->SetIndex(count);
             nodes.push_back(temp_nodes[index]);
-            cout << "Keeping node " << temp_nodes[index]->rGetLocation() << "\n";
             count++;
         }
     }
