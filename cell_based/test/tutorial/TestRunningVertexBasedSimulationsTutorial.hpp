@@ -202,10 +202,10 @@ public:
          * Here the first and second arguments define the size of the mesh - we have chosen a mesh that
          * is 4 elements (i.e. cells) wide, and 4 elements high.
          */
-        double width = 12;//12;
-        double height = 12.124;//7 * sqrt(3.0);
+        double width = 10;//12;
+        double height = 10;//7 * sqrt(3.0);
 
-        VertexMeshReader<2,2> mesh_reader("/home/pohaoc2/UW/bagherilab/Chaste/cell_based/test/data/TestCustomMesh/hexgons");
+        VertexMeshReader<2,2> mesh_reader("/home/pohaoc2/UW/bagherilab/Chaste/cell_based/test/data/TestCustomMesh/wounded");
         CylindricalHoneycombVertexMeshGenerator generator(mesh_reader, width, height);    // Parameters are: cells across, cells up
         boost::shared_ptr<Cylindrical2dVertexMesh> p_mesh = generator.GetCylindricalMesh();
 
@@ -237,7 +237,7 @@ public:
         MAKE_PTR(FarhadifarForce<2>, p_force);
 
         double elasticity = 1.0;
-        double target_area = 1.0;
+        double target_area = 0.4725;
         double contractility = 0.4;
         double line_tension = 0.12;
         double bd_line_tension = 0.12;
