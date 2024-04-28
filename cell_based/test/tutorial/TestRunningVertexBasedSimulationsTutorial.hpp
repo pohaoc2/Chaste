@@ -79,6 +79,8 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /* The next header file defines a force law for describing the mechanical interactions
  * between neighbouring cells in the cell population, subject to each vertex.
  */
+
+#include "ForwardEulerNumericalMethod.hpp"
 #include "NagaiHondaForce.hpp"
 #include "FarhadifarForce.hpp"
 /* This force law assumes that cells possess a "target area" property which determines the size of each
@@ -202,12 +204,15 @@ public:
          * Here the first and second arguments define the size of the mesh - we have chosen a mesh that
          * is 4 elements (i.e. cells) wide, and 4 elements high.
          */
-        double width = 10;//12;
-        double height = 10;//7 * sqrt(3.0);
-
+        double width = 1024+30;//12;
+        double height = 1024+30;//7 * sqrt(3.0);
+        double CellRearrangementThreshold = 0.01;
         VertexMeshReader<2,2> mesh_reader("/home/pohaoc2/UW/bagherilab/Chaste/cell_based/test/data/TestCustomMesh/wounded");
-        CylindricalHoneycombVertexMeshGenerator generator(mesh_reader, width, height);    // Parameters are: cells across, cells up
+        CylindricalHoneycombVertexMeshGenerator generator(mesh_reader, width, height, CellRearrangementThreshold);    // Parameters are: cells across, cells up
         boost::shared_ptr<Cylindrical2dVertexMesh> p_mesh = generator.GetCylindricalMesh();
+
+        std::cout << "CellRearrangementThreshold: " << p_mesh->GetCellRearrangementThreshold() << std::endl;
+
 
         /* Having created a mesh, we now create a `std::vector` of `CellPtr`s.
         * This is exactly the same as the above test. */
@@ -225,22 +230,25 @@ public:
         /* As always we then pass the cell population into an `OffLatticeSimulation`,
          * and set the output directory, output multiple and end time. */
         OffLatticeSimulation<2> simulator(cell_population);
+        boost::shared_ptr<AbstractNumericalMethod<2,2> > p_method(new ForwardEulerNumericalMethod<2,2>());
+        p_method->SetUseAdaptiveTimestep(true);
+        simulator.SetNumericalMethod(p_method);
+
         simulator.SetOutputDirectory("VertexBasedPeriodicMonolayerCustom");
         simulator.SetSamplingTimestepMultiple(50);
-        simulator.SetDt(0.01);
-        simulator.SetEndTime(10);
+        simulator.SetDt(2);
+        simulator.SetEndTime(50000);
 
         /* We now make a pointer to an appropriate force and pass it to the
          * `OffLatticeSimulation`.
          */
-        //MAKE_PTR(NagaiHondaForce<2>, p_force);
         MAKE_PTR(FarhadifarForce<2>, p_force);
 
         double elasticity = 1.0;
-        double target_area = 0.4725;
-        double contractility = 0.4;
-        double line_tension = 0.12;
-        double bd_line_tension = 0.12;
+        double target_area = 5000;
+        double contractility = 1.0;
+        double line_tension = 1000;
+        double bd_line_tension = 1000;
 
         p_force->SetAreaElasticityParameter(elasticity);
         p_force->SetTargetAreaParameter(target_area);
@@ -254,7 +262,7 @@ public:
 
         /* To run the simulation, we call `Solve()`. */
         simulator.Solve();
-
+        
         /* The next two lines are for test purposes only and are not part of this tutorial.
          */
         //TS_ASSERT_EQUALS(cell_population.GetNumRealCells(), 12u);
