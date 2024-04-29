@@ -204,8 +204,8 @@ public:
          * Here the first and second arguments define the size of the mesh - we have chosen a mesh that
          * is 4 elements (i.e. cells) wide, and 4 elements high.
          */
-        double width = 1024+30;//12;
-        double height = 1024+30;//7 * sqrt(3.0);
+        double width = 59.74+3.21;//12;
+        double height = 59.74+3.21;//7 * sqrt(3.0);
         double CellRearrangementThreshold = 0.01;
         VertexMeshReader<2,2> mesh_reader("/home/pohaoc2/UW/bagherilab/Chaste/cell_based/test/data/TestCustomMesh/wounded");
         CylindricalHoneycombVertexMeshGenerator generator(mesh_reader, width, height, CellRearrangementThreshold);    // Parameters are: cells across, cells up
@@ -236,7 +236,7 @@ public:
 
         simulator.SetOutputDirectory("VertexBasedPeriodicMonolayerCustom");
         simulator.SetSamplingTimestepMultiple(50);
-        simulator.SetDt(2);
+        simulator.SetDt(0.00001);
         simulator.SetEndTime(50000);
 
         /* We now make a pointer to an appropriate force and pass it to the
@@ -245,10 +245,10 @@ public:
         MAKE_PTR(FarhadifarForce<2>, p_force);
 
         double elasticity = 1.0;
-        double target_area = 5000;
-        double contractility = 1.0;
-        double line_tension = 1000;
-        double bd_line_tension = 1000;
+        double target_area = 16.97;
+        double contractility = 0.0;
+        double line_tension = 0;
+        double bd_line_tension = 0;
 
         p_force->SetAreaElasticityParameter(elasticity);
         p_force->SetTargetAreaParameter(target_area);
