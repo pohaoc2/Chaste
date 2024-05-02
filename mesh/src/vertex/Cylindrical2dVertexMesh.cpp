@@ -32,9 +32,24 @@ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
 OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 */
-
+#include "iostream"
 #include "Cylindrical2dVertexMesh.hpp"
 #include "Cylindrical2dMesh.hpp"
+
+Cylindrical2dVertexMesh::Cylindrical2dVertexMesh(double width,
+                                                 double height,
+                                                 std::vector<Node<2>*> nodes,
+                                                 std::vector<VertexElement<2, 2>*> vertexElements,
+                                                 double cellRearrangementThreshold,
+                                                 double t2Threshold)
+    : MutableVertexMesh<2,2>(nodes, vertexElements, cellRearrangementThreshold, t2Threshold),
+      mWidth(width),
+      mHeight(height),
+      mpMeshForVtk(nullptr)
+{
+    // Call ReMesh() to remove any deleted nodes and relabel
+    ReMesh();
+}
 
 Cylindrical2dVertexMesh::Cylindrical2dVertexMesh(double width,
                                                  std::vector<Node<2>*> nodes,
@@ -43,6 +58,7 @@ Cylindrical2dVertexMesh::Cylindrical2dVertexMesh(double width,
                                                  double t2Threshold)
     : MutableVertexMesh<2,2>(nodes, vertexElements, cellRearrangementThreshold, t2Threshold),
       mWidth(width),
+      mHeight(0.0),
       mpMeshForVtk(nullptr)
 {
     // Call ReMesh() to remove any deleted nodes and relabel
@@ -358,6 +374,7 @@ Cylindrical2dVertexMesh::~Cylindrical2dVertexMesh()
 c_vector<double, 2> Cylindrical2dVertexMesh::GetVectorFromAtoB(const c_vector<double, 2>& rLocation1, const c_vector<double, 2>& rLocation2)
 {
     assert(mWidth > 0.0);
+    assert(mHeight > 0.0);
 
     c_vector<double, 2> vector = rLocation2 - rLocation1;
     vector[0] = fmod(vector[0], mWidth);
@@ -371,6 +388,22 @@ c_vector<double, 2> Cylindrical2dVertexMesh::GetVectorFromAtoB(const c_vector<do
     {
         vector[0] += mWidth;
     }
+
+    vector[1] = fmod(vector[1], mHeight);
+
+    // If the points are more than halfway around the cylinder apart, measure the other way
+    if (mHeight > 0.0)
+    {
+        if (vector[1] > 0.5 * mHeight)
+        {
+            vector[1] -= mHeight;
+        }
+        else if (vector[1] < -0.5 * mHeight)
+        {
+            vector[1] += mHeight;
+        }
+    }
+
     return vector;
 }
 
@@ -391,7 +424,28 @@ void Cylindrical2dVertexMesh::SetNode(unsigned nodeIndex, ChastePoint<2> point)
     }
 
     // Update the node's location
+    //MutableVertexMesh<2,2>::SetNode(nodeIndex, point);
+    if (mHeight > 0.0)
+    {
+        double y_coord = point.rGetLocation()[1];
+
+        // Perform a periodic movement if necessary
+        if (y_coord >= mHeight)
+        {
+            // Move point to the left
+            point.SetCoordinate(1, y_coord - mHeight);
+        }
+        else if (y_coord < 0.0)
+        {
+            // Move point to the righ
+            point.SetCoordinate(1, y_coord + mHeight);
+        }
+    }
+
+
+    // Update the node's location
     MutableVertexMesh<2,2>::SetNode(nodeIndex, point);
+
 }
 
 double Cylindrical2dVertexMesh::GetWidth(const unsigned& rDimension) const
@@ -402,12 +456,21 @@ double Cylindrical2dVertexMesh::GetWidth(const unsigned& rDimension) const
     {
         width = mWidth;
     }
-    else
+    else if (rDimension==1)
     {
-        width = VertexMesh<2,2>::GetWidth(rDimension);
+        if (mHeight > 0.0)
+        {
+            width = mHeight;
+        }
+        else
+        {
+            width = VertexMesh<2,2>::GetWidth(rDimension);
+        }
     }
+
     return width;
 }
+
 
 unsigned Cylindrical2dVertexMesh::AddNode(Node<2>* pNewNode)
 {
@@ -429,6 +492,19 @@ void Cylindrical2dVertexMesh::CheckNodeLocation(Node<2>* pNode)
     {
         pNode->rGetModifiableLocation()[0] = x_location - mWidth;
     }
+    if (mHeight > 0.0)
+    {
+        double y_location = pNode->rGetLocation()[1];
+        if (y_location < 0)
+        {
+            pNode->rGetModifiableLocation()[1] = y_location + mHeight;
+        }
+        else if (y_location >= mHeight)
+        {
+            pNode->rGetModifiableLocation()[1] = y_location - mHeight;
+        }
+    }
+
 }
 
 void Cylindrical2dVertexMesh::Scale(const double xScale, const double yScale, const double zScale)
@@ -439,16 +515,16 @@ void Cylindrical2dVertexMesh::Scale(const double xScale, const double yScale, co
 
     // Also rescale the width of the mesh (this effectively scales the domain)
     mWidth *= xScale;
+    mHeight *= yScale;
 }
 
 VertexMesh<2, 2>* Cylindrical2dVertexMesh::GetMeshForVtk()
 {
     unsigned num_nodes = GetNumNodes();
 
-    std::vector<Node<2>*> temp_nodes(3 * num_nodes);
+    std::vector<Node<2>*> temp_nodes(9 * num_nodes);
     std::vector<VertexElement<2, 2>*> elements;
-
-    // Create three copies of each node
+    // Create five copies of each node
     for (unsigned index=0; index<num_nodes; index++)
     {
         c_vector<double, 2> location;
@@ -459,12 +535,37 @@ VertexMesh<2, 2>* Cylindrical2dVertexMesh::GetMeshForVtk()
         temp_nodes[index] = p_node;
 
         // Node copy shifted right
-        p_node = new Node<2>(num_nodes + index, false, location[0] + mWidth, location[1]);
+        p_node = new Node<2>(1 * num_nodes + index, false, location[0] + mWidth, location[1]);
         temp_nodes[num_nodes + index] = p_node;
 
         // Node copy shifted left
         p_node = new Node<2>(2 * num_nodes + index, false, location[0] - mWidth, location[1]);
         temp_nodes[2*num_nodes + index] = p_node;
+
+        // Node copy shifted top
+        p_node = new Node<2>(3 * num_nodes + index, false, location[0], location[1] + mHeight);
+        temp_nodes[3*num_nodes + index] = p_node;
+
+        // Node copy shifted bottom
+        p_node = new Node<2>(4 * num_nodes + index, false, location[0], location[1] - mHeight);
+        temp_nodes[4*num_nodes + index] = p_node;
+
+        // Node copy shifted top-right
+        p_node = new Node<2>(5 * num_nodes + index, false, location[0] + mWidth, location[1] + mHeight);
+        temp_nodes[5*num_nodes + index] = p_node;
+
+        // Node copy shifted top-left
+        p_node = new Node<2>(6 * num_nodes + index, false, location[0] - mWidth, location[1] + mHeight);
+        temp_nodes[6*num_nodes + index] = p_node;
+
+        // Node copy shifted bottom-right
+        p_node = new Node<2>(7 * num_nodes + index, false, location[0] + mWidth, location[1] - mHeight);
+        temp_nodes[7*num_nodes + index] = p_node;
+
+        // Node copy shifted bottom - left
+        p_node = new Node<2>(8 * num_nodes + index, false, location[0] - mWidth, location[1] - mHeight);
+        temp_nodes[8*num_nodes + index] = p_node;
+
     }
 
     // Iterate over elements
@@ -479,6 +580,7 @@ VertexMesh<2, 2>* Cylindrical2dVertexMesh::GetMeshForVtk()
 
         // Compute whether the element straddles either periodic boundary
         bool element_straddles_left_right_boundary = false;
+        bool element_straddles_bottom_top_boundary = false;
 
         const c_vector<double, 2>& r_this_node_location = elem_iter->GetNode(0)->rGetLocation();
         for (unsigned local_index=0; local_index<num_nodes_in_elem; local_index++)
@@ -491,20 +593,34 @@ VertexMesh<2, 2>* Cylindrical2dVertexMesh::GetMeshForVtk()
             {
                 element_straddles_left_right_boundary = true;
             }
+            if (fabs(vector[1]) > 0.5 * mHeight)
+            {
+                element_straddles_bottom_top_boundary = true;
+            }
+
         }
 
         /* If this is a voronoi tesselation make sure the elements contain
          * the original Delaunay node
          */
         bool element_centre_on_right = true;
+        bool element_centre_on_top = true;
+
         if(mpDelaunayMesh)
         {
-                unsigned delaunay_index = this->GetDelaunayNodeIndexCorrespondingToVoronoiElementIndex(elem_index);
-                double element_centre_x_location = this->mpDelaunayMesh->GetNode(delaunay_index)->rGetLocation()[0];
-                if (element_centre_x_location < 0.5 * mWidth)
-                {
-                    element_centre_on_right = false;
-                }
+            unsigned delaunay_index = this->GetDelaunayNodeIndexCorrespondingToVoronoiElementIndex(elem_index);
+            double element_centre_x_location = this->mpDelaunayMesh->GetNode(delaunay_index)->rGetLocation()[0];
+            double element_centre_y_location = this->mpDelaunayMesh->GetNode(delaunay_index)->rGetLocation()[1];
+
+            if (element_centre_x_location < 0.5 * mWidth)
+            {
+                element_centre_on_right = false;
+            }
+            if (element_centre_y_location < 0.5 * mHeight)
+            {
+                element_centre_on_top = false;
+            }
+
         }
 
         // Use the above information when duplicating the element in the vtk mesh
@@ -513,7 +629,7 @@ VertexMesh<2, 2>* Cylindrical2dVertexMesh::GetMeshForVtk()
             unsigned this_node_index = elem_iter->GetNodeGlobalIndex(local_index);
 
             // If the element straddles the left/right periodic boundary...
-            if (element_straddles_left_right_boundary)
+            if (element_straddles_left_right_boundary && !element_straddles_bottom_top_boundary)
             {
                 // ...and this node is located to the left of the centre of the mesh...
                 bool node_is_right_of_centre = (elem_iter->GetNode(local_index)->rGetLocation()[0] - 0.5 * mWidth > 0);
@@ -526,6 +642,41 @@ VertexMesh<2, 2>* Cylindrical2dVertexMesh::GetMeshForVtk()
                 {
                     // ...then choose the equivalent node to the left
                     this_node_index += 2 * num_nodes;
+                }
+            }
+
+            else if (!element_straddles_left_right_boundary && element_straddles_bottom_top_boundary)
+            {
+                bool node_is_top_of_centre = (elem_iter->GetNode(local_index)->rGetLocation()[1] - 0.5 * mHeight > 0);
+                if (!node_is_top_of_centre && element_centre_on_top)
+                {   
+                    this_node_index += 3 * num_nodes;
+                }
+                else if (node_is_top_of_centre && !element_centre_on_top)
+                {
+                    this_node_index += 4 * num_nodes;
+                }
+            }
+            else if (element_straddles_left_right_boundary && element_straddles_bottom_top_boundary)
+            {
+                bool node_is_right_of_centre = (elem_iter->GetNode(local_index)->rGetLocation()[0] - 0.5 * mWidth > 0);
+                bool node_is_top_of_centre = (elem_iter->GetNode(local_index)->rGetLocation()[1] - 0.5 * mHeight > 0);
+
+                if (node_is_right_of_centre && node_is_top_of_centre)
+                {
+                    this_node_index += 5 * num_nodes;
+                }
+                else if (!node_is_right_of_centre && node_is_top_of_centre)
+                {
+                    this_node_index += 6 * num_nodes;
+                }
+                else if (node_is_right_of_centre && !node_is_top_of_centre)
+                {
+                    this_node_index += 7 * num_nodes;
+                }
+                else
+                {
+                    this_node_index += 8 * num_nodes;
                 }
             }
 
