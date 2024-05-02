@@ -235,20 +235,20 @@ public:
         simulator.SetNumericalMethod(p_method);
 
         simulator.SetOutputDirectory("VertexBasedPeriodicMonolayerCustom");
-        simulator.SetSamplingTimestepMultiple(50);
-        simulator.SetDt(0.00001);
-        simulator.SetEndTime(50000);
+        simulator.SetSamplingTimestepMultiple(25);
+        simulator.SetDt(0.005);
+        simulator.SetEndTime(500);
 
         /* We now make a pointer to an appropriate force and pass it to the
          * `OffLatticeSimulation`.
          */
         MAKE_PTR(FarhadifarForce<2>, p_force);
 
-        double elasticity = 1.0;
+        double elasticity = 0.0;
         double target_area = 16.97;
-        double contractility = 0.0;
-        double line_tension = 0;
-        double bd_line_tension = 0;
+        double contractility = 0.00;
+        double line_tension = 0.0;
+        double bd_line_tension = 0.12;
 
         p_force->SetAreaElasticityParameter(elasticity);
         p_force->SetTargetAreaParameter(target_area);
