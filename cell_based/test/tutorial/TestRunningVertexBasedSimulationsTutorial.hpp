@@ -82,7 +82,7 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "ForwardEulerNumericalMethod.hpp"
 #include "NagaiHondaForce.hpp"
-#include "FarhadifarForce.hpp"
+#include "FarhadifarForceFluctuation.hpp"
 /* This force law assumes that cells possess a "target area" property which determines the size of each
  * cell in the simulation. In order to assign target areas to cells and update them in each time step, we need
  * the next header file.
@@ -242,7 +242,7 @@ public:
         /* We now make a pointer to an appropriate force and pass it to the
          * `OffLatticeSimulation`.
          */
-        MAKE_PTR(FarhadifarForce<2>, p_force);
+        MAKE_PTR(FarhadifarForceFluctuation<2>, p_force);
 
         double elasticity = 0.0;
         double target_area = 16.97;
