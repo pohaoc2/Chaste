@@ -244,9 +244,9 @@ public:
          */
         MAKE_PTR(FarhadifarForce<2>, p_force);
 
-        double elasticity = 0.0;
+        double elasticity = 1.0;
         double target_area = 16.97;
-        double contractility = 0.00;
+        double contractility = 0.04;
         double line_tension = 0.0;
         double bd_line_tension = 0.12;
 
