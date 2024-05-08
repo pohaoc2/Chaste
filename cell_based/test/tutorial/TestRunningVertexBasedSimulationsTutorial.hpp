@@ -211,9 +211,6 @@ public:
         CylindricalHoneycombVertexMeshGenerator generator(mesh_reader, width, height, CellRearrangementThreshold);    // Parameters are: cells across, cells up
         boost::shared_ptr<Cylindrical2dVertexMesh> p_mesh = generator.GetCylindricalMesh();
 
-        std::cout << "CellRearrangementThreshold: " << p_mesh->GetCellRearrangementThreshold() << std::endl;
-
-
         /* Having created a mesh, we now create a `std::vector` of `CellPtr`s.
         * This is exactly the same as the above test. */
         std::vector<CellPtr> cells;
@@ -235,9 +232,9 @@ public:
         simulator.SetNumericalMethod(p_method);
 
         simulator.SetOutputDirectory("VertexBasedPeriodicMonolayerCustom");
-        simulator.SetSamplingTimestepMultiple(25);
-        simulator.SetDt(0.005);
-        simulator.SetEndTime(500);
+        simulator.SetSamplingTimestepMultiple(16);
+        simulator.SetDt(0.01);
+        simulator.SetEndTime(10000);
 
         /* We now make a pointer to an appropriate force and pass it to the
          * `OffLatticeSimulation`.
@@ -247,10 +244,10 @@ public:
         double elasticity = 1;
         double target_area = 16.97;
         double contractility = 0.04;
-        double line_tension = 0.12;
-        double bd_line_tension = 0.12;
+        double line_tension = 0.0;
+        double bd_line_tension = 1.0;
         double Dt = 0.005*60*60;
-        double tau = 9.2;
+        double tau = 8.5;
         double sigma = 0.025;
 
         p_force->SetDt(Dt);
@@ -258,9 +255,7 @@ public:
         p_force->SetSigma(sigma);
         p_force->SetAreaElasticityParameter(elasticity);
         p_force->SetTargetAreaParameter(target_area);
-
         p_force->SetPerimeterContractilityParameter(contractility);
-        
         p_force->SetLineTensionParameter(line_tension);
         p_force->SetBoundaryLineTensionParameter(bd_line_tension);
 

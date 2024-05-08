@@ -113,6 +113,8 @@ protected:
     double mDt;
     double mTau;
     double mSigma;
+    std::vector<double> mline_tension_map;
+
 
 public:
 
@@ -162,9 +164,11 @@ public:
      */
     double GetLineTensionParameter();
 
-    std::unordered_map <int, double> CreateLineTensionHashMap(VertexBasedCellPopulation<DIM>* p_cell_population);
-
-
+    void InitializeLineTensionMap(VertexBasedCellPopulation<DIM>* p_cell_population);
+    void UpdateLineTensionMap(VertexBasedCellPopulation<DIM>* p_cell_population);
+    void CalculatePerturbedLineTension(Node<DIM>* pNodeA, Node<DIM>* pNodeB, VertexBasedCellPopulation<DIM>& rVertexCellPopulation);
+    std::set<unsigned> GetSharedElements(Node<DIM>* pNodeA, Node<DIM>* pNodeB, VertexBasedCellPopulation<DIM>& rVertexCellPopulation);
+    unsigned GetEdgeLocalIndex(Node<DIM>* pNodeA, Node<DIM>* pNodeB, VertexBasedCellPopulation<DIM>& rVertexCellPopulation, std::set<unsigned> shared_elements);
     /**
      * @return mBoundaryLineTensionParameter
      */

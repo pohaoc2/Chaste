@@ -66,9 +66,19 @@ void FarhadifarForceFluctuation<DIM>::AddForceContribution(AbstractCellPopulatio
     {
         EXCEPTION("FarhadifarForce is to be used with a VertexBasedCellPopulation only");
     }
+    if (mline_tension_map.size() == 0 || mline_tension_map.size() != static_cast<VertexBasedCellPopulation<DIM>*>(&rCellPopulation)->rGetMesh().GetNumEdges())
+    {
+        InitializeLineTensionMap(static_cast<VertexBasedCellPopulation<DIM>*>(&rCellPopulation));
+    }
+        
+    //std::cout << "Line tension of edge 100 = " << mline_tension_map[100] << std::endl;
+
+    VertexBasedCellPopulation<DIM>* p_cell_population = static_cast<VertexBasedCellPopulation<DIM>*>(&rCellPopulation);
+    UpdateLineTensionMap(p_cell_population);
+
+    
 
     // Define some helper variables
-    VertexBasedCellPopulation<DIM>* p_cell_population = static_cast<VertexBasedCellPopulation<DIM>*>(&rCellPopulation);
 
     unsigned num_nodes = p_cell_population->GetNumNodes();
     unsigned num_elements = p_cell_population->GetNumElements();
@@ -87,21 +97,7 @@ void FarhadifarForceFluctuation<DIM>::AddForceContribution(AbstractCellPopulatio
     for (typename VertexMesh<DIM,DIM>::VertexElementIterator elem_iter = p_cell_population->rGetMesh().GetElementIteratorBegin();
          elem_iter != p_cell_population->rGetMesh().GetElementIteratorEnd();
          ++elem_iter)
-    {   /*
-        std::cout << "Element index: " << elem_iter->GetIndex() << std::endl;
-        for (unsigned i = 0; i < elem_iter->GetNumEdges(); i++)
-        {
-            std::cout << elem_iter->GetEdge(i)->GetIndex() << " ";
-        }
-        std::cout << std::endl;
-        for (unsigned i = 0; i < elem_iter->GetNumEdges(); i++)
-        {
-            unsigned edgeLocalIndex = elem_iter->GetEdge(i)->GetIndex();
-            std::cout << elem_iter->GetEdgeGlobalIndex(edgeLocalIndex) << " ";
-        }
-        std::cout << std::endl;*/
-
-
+    { 
         unsigned elem_index = elem_iter->GetIndex();
         element_areas[elem_index] = p_cell_population->rGetMesh().GetVolumeOfElement(elem_index);
         element_perimeters[elem_index] = p_cell_population->rGetMesh().GetSurfaceAreaOfElement(elem_index);
@@ -193,10 +189,49 @@ void FarhadifarForceFluctuation<DIM>::AddForceContribution(AbstractCellPopulatio
     }
 }
 
+template<unsigned DIM>
+void FarhadifarForceFluctuation<DIM>::InitializeLineTensionMap(VertexBasedCellPopulation<DIM>* p_cell_population)
+{
+    std::vector<double> line_tension_map;
+    unsigned numEdges = p_cell_population->rGetMesh().GetNumEdges();
+    unsigned num_nodes = p_cell_population->GetNumNodes();
+    line_tension_map.resize(numEdges);
+
+    for (unsigned node_index=0; node_index<num_nodes; node_index++)
+    {
+        Node<DIM>* p_this_node = p_cell_population->GetNode(node_index);
+        // Find the indices of the elements owned by this node
+        std::set<unsigned> containing_elem_indices = p_cell_population->GetNode(node_index)->rGetContainingElementIndices();
+
+        // Iterate over these elements
+        for (std::set<unsigned>::iterator iter = containing_elem_indices.begin();
+             iter != containing_elem_indices.end();
+             ++iter)
+        {
+            // Get this element, its index and its number of nodes
+            VertexElement<DIM, DIM>* p_element = p_cell_population->GetElement(*iter);
+            unsigned num_nodes_elem = p_element->GetNumNodes();
+            // Find the local index of this node in this element
+            unsigned local_index = p_element->GetNodeLocalIndex(node_index);
+            // Get the previous and next nodes in this element
+            unsigned previous_node_local_index = (num_nodes_elem+local_index-1)%num_nodes_elem;
+            Node<DIM>* p_previous_node = p_element->GetNode(previous_node_local_index);
+            std::set<unsigned> shared_elements = GetSharedElements(p_previous_node, p_this_node, *p_cell_population);
+            unsigned edgeLocalIndex = GetEdgeLocalIndex(p_previous_node, p_this_node, *p_cell_population, shared_elements);
+            if (shared_elements.size() == 1){
+                line_tension_map[edgeLocalIndex] = GetBoundaryLineTensionParameter();
+            }
+            else if (shared_elements.size() == 2){
+                line_tension_map[edgeLocalIndex] = GetLineTensionParameter();
+            }
+        }
+    }
+    mline_tension_map = line_tension_map;
+}
 
 
 template<unsigned DIM>
-double FarhadifarForceFluctuation<DIM>::GetLineTensionParameter(Node<DIM>* pNodeA, Node<DIM>* pNodeB, VertexBasedCellPopulation<DIM>& rVertexCellPopulation)
+std::set<unsigned> FarhadifarForceFluctuation<DIM>::GetSharedElements(Node<DIM>* pNodeA, Node<DIM>* pNodeB, VertexBasedCellPopulation<DIM>& rVertexCellPopulation)
 {
     // Find the indices of the elements owned by each node
     std::set<unsigned> elements_containing_nodeA = pNodeA->rGetContainingElementIndices();
@@ -209,65 +244,102 @@ double FarhadifarForceFluctuation<DIM>::GetLineTensionParameter(Node<DIM>* pNode
                           elements_containing_nodeB.begin(),
                           elements_containing_nodeB.end(),
                           std::inserter(shared_elements, shared_elements.begin()));
-
-
-    // Check that the nodes have a common edge
     assert(!shared_elements.empty());
-    
-    //iterate shared_elements to find the edge
-    for (std::set<unsigned>::iterator iter = shared_elements.begin();
-         iter != shared_elements.end();
-         ++iter)
+    return shared_elements;
+}
+
+template<unsigned DIM>
+unsigned FarhadifarForceFluctuation<DIM>::GetEdgeLocalIndex(Node<DIM>* pNodeA, Node<DIM>* pNodeB, VertexBasedCellPopulation<DIM>& rVertexCellPopulation, std::set<unsigned> shared_elements)
+{
+    std::set<unsigned>::iterator iter = shared_elements.begin();
+    // Get this element, its index and its number of nodes
+    VertexElement<DIM, DIM>* p_element = rVertexCellPopulation.GetElement(*iter);
+    unsigned num_edges_elem = p_element->GetNumEdges();
+    unsigned edgeLocalIndex = 0;
+    for (unsigned i = 0; i < num_edges_elem; i++)
     {
-        // Get this element, its index and its number of nodes
-        VertexElement<DIM, DIM>* p_element = rVertexCellPopulation.GetElement(*iter);
-        unsigned num_edges_elem = p_element->GetNumEdges();
-        for (unsigned i = 0; i < num_edges_elem; i++)
+        if (p_element->GetEdge(i)->ContainsNode(pNodeA) && p_element->GetEdge(i)->ContainsNode(pNodeB))
         {
-            unsigned edgeLocalIndex = p_element->GetEdge(i)->GetIndex();
-            if (p_element->GetEdge(i)->ContainsNode(pNodeA) && p_element->GetEdge(i)->ContainsNode(pNodeB))
-            {
-                std::cout << "Edge found: " << edgeLocalIndex << std::endl;
-                //return GetLineTensionParameter(p_element, edgeLocalIndex, rVertexCellPopulation);
-            }
+            edgeLocalIndex = p_element->GetEdge(i)->GetIndex();
+            break;
         }
     }
+    return edgeLocalIndex;
+}
 
-    // Since each internal edge is visited twice in the loop above, we have to use half the line tension parameter
-    // for each visit.
-    double line_tension_parameter_in_calculation = mPreviousLineTensionParameter; // = GetLineTensionParameter()/2.0;
-    line_tension_parameter_in_calculation -= mDt/mTau*(line_tension_parameter_in_calculation - GetLineTensionParameter());
+template<unsigned DIM>
+void FarhadifarForceFluctuation<DIM>::CalculatePerturbedLineTension(Node<DIM>* pNodeA, Node<DIM>* pNodeB, VertexBasedCellPopulation<DIM>& rVertexCellPopulation)
+{
+    std::set<unsigned> shared_elements = GetSharedElements(pNodeA, pNodeB, rVertexCellPopulation);
+    unsigned edgeLocalIndex = GetEdgeLocalIndex(pNodeA, pNodeB, rVertexCellPopulation, shared_elements);
+
+
+    double line_tension_parameter_in_calculation = mline_tension_map[edgeLocalIndex];
     // Add the fluctuation term: truncated normal distribution with mean 0 and variance 1
     std::random_device rd; // Create a random device
     std::default_random_engine generator(rd());
     std::normal_distribution<double> dist(0, mSigma);
-    double truncated_random;
-    while (true)
-    {
-        truncated_random = dist(generator);
-        break;
-        /*if (truncated_random > 0)
-        {
-            break;
-        }*/
-    }
-
-    double fluctuation = mSigma * std::sqrt(2 * mDt / mTau) * truncated_random;
+    double normal_random = dist(generator);
+    double fluctuation = mSigma * std::sqrt(2 * mDt / mTau) * normal_random;
     line_tension_parameter_in_calculation += fluctuation;
     line_tension_parameter_in_calculation = std::max(0.0, line_tension_parameter_in_calculation);
-    //std::cout << "Line tension parameter: " << line_tension_parameter_in_calculation << std::endl;
-    
-    mPreviousLineTensionParameter = line_tension_parameter_in_calculation;
-    line_tension_parameter_in_calculation *= 0.5;
-    // If the edge corresponds to a single element, then the cell is on the boundary
-    if (shared_elements.size() == 1)
+    if (shared_elements.size() == 2)
     {
-        line_tension_parameter_in_calculation= mPreviousBoundaryLineTensionParameter; // = GetBoundaryLineTensionParameter();
+        line_tension_parameter_in_calculation -= mDt/mTau*(line_tension_parameter_in_calculation - GetLineTensionParameter());
+        mline_tension_map[edgeLocalIndex] = line_tension_parameter_in_calculation;
+    }
+    
+    else if (shared_elements.size() == 1)
+    {
         line_tension_parameter_in_calculation -= mDt/mTau*(line_tension_parameter_in_calculation - GetBoundaryLineTensionParameter());
         // Add the fluctuation term: truncated normal distribution with mean 0 and variance 1
-        line_tension_parameter_in_calculation += fluctuation;
-        mPreviousBoundaryLineTensionParameter = line_tension_parameter_in_calculation;
+        mline_tension_map[edgeLocalIndex] = line_tension_parameter_in_calculation;
     }
+
+}
+
+template<unsigned DIM>
+void FarhadifarForceFluctuation<DIM>::UpdateLineTensionMap(VertexBasedCellPopulation<DIM>* p_cell_population)
+{
+    unsigned num_nodes = p_cell_population->GetNumNodes();
+
+    for (unsigned node_index=0; node_index<num_nodes; node_index++)
+    {
+        Node<DIM>* p_this_node = p_cell_population->GetNode(node_index);
+        // Find the indices of the elements owned by this node
+        std::set<unsigned> containing_elem_indices = p_cell_population->GetNode(node_index)->rGetContainingElementIndices();
+
+        // Iterate over these elements
+        for (std::set<unsigned>::iterator iter = containing_elem_indices.begin();
+             iter != containing_elem_indices.end();
+             ++iter)
+        {
+            // Get this element, its index and its number of nodes
+            VertexElement<DIM, DIM>* p_element = p_cell_population->GetElement(*iter);
+            unsigned num_nodes_elem = p_element->GetNumNodes();
+            // Find the local index of this node in this element
+            unsigned local_index = p_element->GetNodeLocalIndex(node_index);
+            // Get the previous and next nodes in this element
+            unsigned previous_node_local_index = (num_nodes_elem+local_index-1)%num_nodes_elem;
+            Node<DIM>* p_previous_node = p_element->GetNode(previous_node_local_index);
+            CalculatePerturbedLineTension(p_previous_node, p_this_node, *p_cell_population);
+        }
+    }
+}
+
+template<unsigned DIM>
+double FarhadifarForceFluctuation<DIM>::GetLineTensionParameter(Node<DIM>* pNodeA, Node<DIM>* pNodeB, VertexBasedCellPopulation<DIM>& rVertexCellPopulation)
+{
+    std::set<unsigned> shared_elements = GetSharedElements(pNodeA, pNodeB, rVertexCellPopulation);
+    unsigned edgeLocalIndex = GetEdgeLocalIndex(pNodeA, pNodeB, rVertexCellPopulation, shared_elements);
+    // Since each internal edge is visited twice in the loop above, we have to use half the line tension parameter
+    // for each visit.
+    double line_tension_parameter_in_calculation = mline_tension_map[edgeLocalIndex];
+        if (shared_elements.size() == 2)
+    {
+        line_tension_parameter_in_calculation = 0.5*line_tension_parameter_in_calculation;
+    }
+
 
     return line_tension_parameter_in_calculation;
 }
