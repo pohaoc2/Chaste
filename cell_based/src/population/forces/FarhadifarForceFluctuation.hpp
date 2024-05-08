@@ -93,11 +93,13 @@ protected:
      * The strength of the line tension term in the model. Lambda_{i,j} in Farhadifar's paper.
      */
     double mLineTensionParameter;
+    double mPreviousLineTensionParameter;
 
     /**
      * The strength of the line tension at the boundary. This term corresponds to Lambda_{i,j} in Farhadifar's paper.
      */
     double mBoundaryLineTensionParameter;
+    double mPreviousBoundaryLineTensionParameter;
 
     /**
      * The target area. This term corresponds to A_0 in Farhadifar's paper.
@@ -107,6 +109,10 @@ protected:
      * in each Cell in the force calculation instead of this parameter value.
      */
     double mTargetAreaParameter;
+
+    double mDt;
+    double mTau;
+    double mSigma;
 
 public:
 
@@ -156,6 +162,9 @@ public:
      */
     double GetLineTensionParameter();
 
+    std::unordered_map <int, double> CreateLineTensionHashMap(VertexBasedCellPopulation<DIM>* p_cell_population);
+
+
     /**
      * @return mBoundaryLineTensionParameter
      */
@@ -201,6 +210,14 @@ public:
      */
     void SetTargetAreaParameter(double targetAreaParameter);
 
+    /**
+     * Set mDt.
+     *
+     * @param dt the new value of mDt
+     */
+    void SetDt(double dt);
+    void SetTau(double tau);
+    void SetSigma(double sigma);
     /**
      * Overridden OutputForceParameters() method.
      *

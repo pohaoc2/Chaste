@@ -244,12 +244,18 @@ public:
          */
         MAKE_PTR(FarhadifarForceFluctuation<2>, p_force);
 
-        double elasticity = 1.0;
+        double elasticity = 1;
         double target_area = 16.97;
         double contractility = 0.04;
-        double line_tension = 0.0;
+        double line_tension = 0.12;
         double bd_line_tension = 0.12;
+        double Dt = 0.005*60*60;
+        double tau = 9.2;
+        double sigma = 0.025;
 
+        p_force->SetDt(Dt);
+        p_force->SetTau(tau);
+        p_force->SetSigma(sigma);
         p_force->SetAreaElasticityParameter(elasticity);
         p_force->SetTargetAreaParameter(target_area);
 
