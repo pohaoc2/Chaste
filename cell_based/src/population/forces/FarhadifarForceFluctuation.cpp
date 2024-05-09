@@ -268,41 +268,40 @@ unsigned FarhadifarForceFluctuation<DIM>::GetEdgeLocalIndex(Node<DIM>* pNodeA, N
 }
 
 template<unsigned DIM>
-void FarhadifarForceFluctuation<DIM>::CalculatePerturbedLineTension(Node<DIM>* pNodeA, Node<DIM>* pNodeB, VertexBasedCellPopulation<DIM>& rVertexCellPopulation)
+void FarhadifarForceFluctuation<DIM>::CalculatePerturbedLineTension(unsigned edgeLocalIndex, std::set<unsigned> shared_elements)
 {
-    std::set<unsigned> shared_elements = GetSharedElements(pNodeA, pNodeB, rVertexCellPopulation);
-    unsigned edgeLocalIndex = GetEdgeLocalIndex(pNodeA, pNodeB, rVertexCellPopulation, shared_elements);
-
 
     double line_tension_parameter_in_calculation = mline_tension_map[edgeLocalIndex];
     // Add the fluctuation term: truncated normal distribution with mean 0 and variance 1
     std::random_device rd; // Create a random device
     std::default_random_engine generator(rd());
-    std::normal_distribution<double> dist(0, mSigma);
-    double normal_random = dist(generator);
-    double fluctuation = mSigma * std::sqrt(2 * mDt / mTau) * normal_random;
-    line_tension_parameter_in_calculation += fluctuation;
-    line_tension_parameter_in_calculation = std::max(0.0, line_tension_parameter_in_calculation);
+    std::normal_distribution<double> dist(0, mSigma * std::sqrt(2 * mDt / mTau));
+    double fluctuation = dist(generator);
+    
     if (shared_elements.size() == 2)
     {
         line_tension_parameter_in_calculation -= mDt/mTau*(line_tension_parameter_in_calculation - GetLineTensionParameter());
-        mline_tension_map[edgeLocalIndex] = line_tension_parameter_in_calculation;
     }
     
     else if (shared_elements.size() == 1)
     {
         line_tension_parameter_in_calculation -= mDt/mTau*(line_tension_parameter_in_calculation - GetBoundaryLineTensionParameter());
-        // Add the fluctuation term: truncated normal distribution with mean 0 and variance 1
-        mline_tension_map[edgeLocalIndex] = line_tension_parameter_in_calculation;
     }
 
+
+    line_tension_parameter_in_calculation += fluctuation;
+    if (shared_elements.size() == 1)
+    {
+        std::cout << "Boundary line tension parameter = " << line_tension_parameter_in_calculation << "\n";
+    }
+    mline_tension_map[edgeLocalIndex] = std::max(0.0, line_tension_parameter_in_calculation);
 }
 
 template<unsigned DIM>
 void FarhadifarForceFluctuation<DIM>::UpdateLineTensionMap(VertexBasedCellPopulation<DIM>* p_cell_population)
 {
     unsigned num_nodes = p_cell_population->GetNumNodes();
-
+    std::vector<unsigned> traversed_edges;
     for (unsigned node_index=0; node_index<num_nodes; node_index++)
     {
         Node<DIM>* p_this_node = p_cell_population->GetNode(node_index);
@@ -322,7 +321,13 @@ void FarhadifarForceFluctuation<DIM>::UpdateLineTensionMap(VertexBasedCellPopula
             // Get the previous and next nodes in this element
             unsigned previous_node_local_index = (num_nodes_elem+local_index-1)%num_nodes_elem;
             Node<DIM>* p_previous_node = p_element->GetNode(previous_node_local_index);
-            CalculatePerturbedLineTension(p_previous_node, p_this_node, *p_cell_population);
+            std::set<unsigned> shared_elements = GetSharedElements(p_previous_node, p_this_node, *p_cell_population);
+            unsigned edgeLocalIndex = GetEdgeLocalIndex(p_previous_node, p_this_node, *p_cell_population, shared_elements);
+            if (std::find(traversed_edges.begin(), traversed_edges.end(), edgeLocalIndex) == traversed_edges.end())
+            {
+                traversed_edges.push_back(edgeLocalIndex);
+                CalculatePerturbedLineTension(edgeLocalIndex, shared_elements);
+            }
         }
     }
 }
@@ -335,12 +340,14 @@ double FarhadifarForceFluctuation<DIM>::GetLineTensionParameter(Node<DIM>* pNode
     // Since each internal edge is visited twice in the loop above, we have to use half the line tension parameter
     // for each visit.
     double line_tension_parameter_in_calculation = mline_tension_map[edgeLocalIndex];
-        if (shared_elements.size() == 2)
+    if (shared_elements.size() == 2)
     {
         line_tension_parameter_in_calculation = 0.5*line_tension_parameter_in_calculation;
     }
-
-
+    else
+    {
+        //std::cout << "Boundary line tension parameter = " << mBoundaryLineTensionParameter << std::endl;
+    }
     return line_tension_parameter_in_calculation;
 }
 

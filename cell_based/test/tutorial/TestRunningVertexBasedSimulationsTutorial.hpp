@@ -234,7 +234,7 @@ public:
         simulator.SetOutputDirectory("VertexBasedPeriodicMonolayerCustom");
         simulator.SetSamplingTimestepMultiple(16);
         simulator.SetDt(0.01);
-        simulator.SetEndTime(10000);
+        simulator.SetEndTime(500);
 
         /* We now make a pointer to an appropriate force and pass it to the
          * `OffLatticeSimulation`.
@@ -244,10 +244,10 @@ public:
         double elasticity = 1;
         double target_area = 16.97;
         double contractility = 0.04;
-        double line_tension = 0.0;
+        double line_tension = 0.12;
         double bd_line_tension = 1.0;
-        double Dt = 0.005*60*60;
-        double tau = 8.5;
+        double Dt = 0.01*60*60;
+        double tau = 20;
         double sigma = 0.025;
 
         p_force->SetDt(Dt);

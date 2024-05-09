@@ -166,7 +166,7 @@ public:
 
     void InitializeLineTensionMap(VertexBasedCellPopulation<DIM>* p_cell_population);
     void UpdateLineTensionMap(VertexBasedCellPopulation<DIM>* p_cell_population);
-    void CalculatePerturbedLineTension(Node<DIM>* pNodeA, Node<DIM>* pNodeB, VertexBasedCellPopulation<DIM>& rVertexCellPopulation);
+    void CalculatePerturbedLineTension(unsigned edgeLocalIndex, std::set<unsigned> shared_elements);
     std::set<unsigned> GetSharedElements(Node<DIM>* pNodeA, Node<DIM>* pNodeB, VertexBasedCellPopulation<DIM>& rVertexCellPopulation);
     unsigned GetEdgeLocalIndex(Node<DIM>* pNodeA, Node<DIM>* pNodeB, VertexBasedCellPopulation<DIM>& rVertexCellPopulation, std::set<unsigned> shared_elements);
     /**
