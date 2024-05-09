@@ -91,15 +91,20 @@ protected:
     double mTargetAreaParameter;
     double mbeta;
     double mmu;
+    double mgamma;
     double mmc;
     double mAmax;
     double mK;
-    double mkplus;
+    double mkplusConstant;
+    double mHillCoefficient;
     double mk1;
     double mk2;
 
-    std::vector<double> mRestLengths;
 
+
+    std::vector<double> mRestLengths;
+    std::vector<double> mMyosinLevels;
+    std::vector<double> mLineTension;
 
 public:
 
@@ -148,8 +153,25 @@ public:
 
 
     void SetTargetAreaParameter(double targetAreaParameter);
-    void Zuluetaforce<DIM>::InitializeRestLengths(VertexBasedCellPopulation<DIM>* p_cell_population)
+    void InitializeRestLengths(VertexBasedCellPopulation<DIM>* p_cell_population);
+    void InitializeMyosinLevel(VertexBasedCellPopulation<DIM>* p_cell_population);
+    void InitializeLineTension(VertexBasedCellPopulation<DIM>* p_cell_population);
 
+    double UpdateMyosinLevelLineTension(VertexBasedCellPopulation<DIM>* p_cell_population);
+    void CalculateLineTension(unsigned edgeLocalIndex, double edgeLength, std::set<unsigned> shared_elements);
+    void CalculateMyosinLevel(unsigned edgeLocalIndex, double edgeLength);
+    double GetBoundaryLineTensionParameter(unsigned edgeIndex, double edgeLength);
+    double GetNonBoundaryLineTensionParameter(unsigned edgeIndex, double edgeLength);
+    std::set<unsigned> GetSharedElements(Node<DIM>* pNodeA, Node<DIM>* pNodeB, VertexBasedCellPopulation<DIM>& rVertexCellPopulation);
+    unsigned GetEdgeLocalIndex(Node<DIM>* pNodeA, Node<DIM>* pNodeB, VertexBasedCellPopulation<DIM>& rVertexCellPopulation, std::set<unsigned> shared_elements);
+    double GetLineTensionParameter(Node<DIM>* pNodeA, Node<DIM>* pNodeB, VertexBasedCellPopulation<DIM>& rVertexCellPopulation);
+    double CalculateMyosinContribution(unsigned edgeIndex, double edgeLength, double deformation);
+    
+    void SetTensionParameter(double lineTensionParameter);
+    void Setmc(double mc);
+    void Setkplus(double Amax, double K, double kplusConstant, double HillCoefficient);
+    void Setkminus(double k1, double k2);
+    
 
     /**
      * Overridden OutputForceParameters() method.

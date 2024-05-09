@@ -45,9 +45,11 @@ Zuluetaforce<DIM>::Zuluetaforce()
      mmc(0.13),
      mAmax(0.8),
      mK(0.5),
-     mkplus(0.009),
+     mkplusConstant(0.009),
      mk1(0.047),
-     mk2(8)
+     mk2(8),
+     mgamma(0.1),
+     mHillCoefficient(5)
 {
 }
 
@@ -69,10 +71,15 @@ void Zuluetaforce<DIM>::AddForceContribution(AbstractCellPopulation<DIM>& rCellP
     if (mRestLengths.size() == 0)
     {
         InitializeRestLengths(static_cast<VertexBasedCellPopulation<DIM>*>(&rCellPopulation));
+        InitializeMyosinLevel(static_cast<VertexBasedCellPopulation<DIM>*>(&rCellPopulation));
+        InitializeLineTension(static_cast<VertexBasedCellPopulation<DIM>*>(&rCellPopulation));
     }
 
     // Define some helper variables
     VertexBasedCellPopulation<DIM>* p_cell_population = static_cast<VertexBasedCellPopulation<DIM>*>(&rCellPopulation);
+    UpdateMyosinLevelLineTension(p_cell_population);
+
+
     unsigned num_nodes = p_cell_population->GetNumNodes();
     unsigned num_elements = p_cell_population->GetNumElements();
 
@@ -85,7 +92,6 @@ void Zuluetaforce<DIM>::AddForceContribution(AbstractCellPopulation<DIM>& rCellP
 
     // Begin by computing the area and perimeter of each element in the mesh, to avoid having to do this multiple times
     std::vector<double> element_areas(num_elements);
-    std::vector<double> element_perimeters(num_elements);
     std::vector<double> target_areas(num_elements);
     for (typename VertexMesh<DIM,DIM>::VertexElementIterator elem_iter = p_cell_population->rGetMesh().GetElementIteratorBegin();
          elem_iter != p_cell_population->rGetMesh().GetElementIteratorEnd();
@@ -93,7 +99,6 @@ void Zuluetaforce<DIM>::AddForceContribution(AbstractCellPopulation<DIM>& rCellP
     {
         unsigned elem_index = elem_iter->GetIndex();
         element_areas[elem_index] = p_cell_population->rGetMesh().GetVolumeOfElement(elem_index);
-        element_perimeters[elem_index] = p_cell_population->rGetMesh().GetSurfaceAreaOfElement(elem_index);
 
         if (using_target_area_modifier)
         {
@@ -114,17 +119,14 @@ void Zuluetaforce<DIM>::AddForceContribution(AbstractCellPopulation<DIM>& rCellP
          * The force on this Node is given by the gradient of the total free
          * energy of the CellPopulation, evaluated at the position of the vertex. This
          * free energy is the sum of the free energies of all CellPtrs in
-         * the cell population. The free energy of each CellPtr is comprised of three
-         * terms - an area deformation energy, a perimeter deformation energy
-         * and line tension energy.
+         * the cell population. The free energy of each CellPtr is comprised of two
+         * terms - an area deformation energy and adhesion energy term.
          *
          * Note that since the movement of this Node only affects the free energy
          * of the CellPtrs containing it, we can just consider the contributions
          * to the free energy gradient from each of these CellPtrs.
          */
         c_vector<double, DIM> area_elasticity_contribution = zero_vector<double>(DIM);
-        c_vector<double, DIM> perimeter_contractility_contribution = zero_vector<double>(DIM);
-        c_vector<double, DIM> line_tension_contribution = zero_vector<double>(DIM);
 
         // Find the indices of the elements owned by this node
         std::set<unsigned> containing_elem_indices = p_cell_population->GetNode(node_index)->rGetContainingElementIndices();
@@ -147,7 +149,7 @@ void Zuluetaforce<DIM>::AddForceContribution(AbstractCellPopulation<DIM>& rCellP
                     p_cell_population->rGetMesh().GetAreaGradientOfElementAtNode(p_element, local_index);
             area_elasticity_contribution -= GetAreaElasticityParameter()*(element_areas[elem_index] -
                     target_areas[elem_index])*element_area_gradient;
-            /*
+            
             // Get the previous and next nodes in this element
             unsigned previous_node_local_index = (num_nodes_elem+local_index-1)%num_nodes_elem;
             Node<DIM>* p_previous_node = p_element->GetNode(previous_node_local_index);
@@ -157,8 +159,12 @@ void Zuluetaforce<DIM>::AddForceContribution(AbstractCellPopulation<DIM>& rCellP
 
             // Compute the line tension parameter for each of these edges - be aware that this is half of the actual
             // value for internal edges since we are looping over each of the internal edges twice
-            double previous_edge_line_tension_parameter = GetLineTensionParameter(p_previous_node, p_this_node, *p_cell_population);
-            double next_edge_line_tension_parameter = GetLineTensionParameter(p_this_node, p_next_node, *p_cell_population);
+            double previous_edgeLength = norm_2(p_previous_node->rGetLocation() - p_this_node->rGetLocation());
+            double next_edgeLength = norm_2(p_this_node->rGetLocation() - p_next_node->rGetLocation());
+
+            double previous_edge_line_tension_parameter = GetLineTensionParameter(p_previous_node, p_this_node, previous_edgeLength, *p_cell_population);
+            double next_edge_line_tension_parameter = GetLineTensionParameter(p_this_node, p_next_node, next_edgeLength, *p_cell_population);
+
 
             // Compute the gradient of each these edges, computed at the present node
             c_vector<double, DIM> previous_edge_gradient =
@@ -168,15 +174,9 @@ void Zuluetaforce<DIM>::AddForceContribution(AbstractCellPopulation<DIM>& rCellP
             // Add the force contribution from cell-cell and cell-boundary line tension (note the minus sign)
             line_tension_contribution -= previous_edge_line_tension_parameter*previous_edge_gradient +
                     next_edge_line_tension_parameter*next_edge_gradient;
-
-            // Add the force contribution from this cell's perimeter contractility (note the minus sign)
-            c_vector<double, DIM> element_perimeter_gradient;
-            element_perimeter_gradient = previous_edge_gradient + next_edge_gradient;
-            perimeter_contractility_contribution -= GetPerimeterContractilityParameter()* element_perimeters[elem_index]*
-                                                                                                     element_perimeter_gradient;*/
         }
 
-        c_vector<double, DIM> force_on_node = area_elasticity_contribution + perimeter_contractility_contribution + line_tension_contribution;
+        c_vector<double, DIM> force_on_node = area_elasticity_contribution + line_tension_contribution;
         p_cell_population->GetNode(node_index)->AddAppliedForceContribution(force_on_node);
     }
 }
@@ -199,6 +199,192 @@ void Zuluetaforce<DIM>::InitializeRestLengths(VertexBasedCellPopulation<DIM>* p_
     mRestLengths = rest_lengths;
 }
 
+template<unsigned DIM>
+void Zuluetaforce<DIM>::InitializeMyosinLevel(VertexBasedCellPopulation<DIM>* p_cell_population)
+{
+    std::vector<double> myosin_levels;
+    unsigned numEdges = p_cell_population->rGetMesh().GetNumEdges();
+    myosin_levels.resize(numEdges);
+    // Iterate over edges in the cell population
+    for (unsigned edge_index=0; edge_index<numEdges; edge_index++)
+    {
+        myosin_levels[edge_index] = 1.0
+    }
+    mMyosinLevels = myosin_levels;
+}
+
+template<unsigned DIM>
+void Zuluetaforce<DIM>::InitializeLineTension(VertexBasedCellPopulation<DIM>* p_cell_population)
+{
+    unsigned num_nodes = p_cell_population->GetNumNodes();
+    mLineTension.resize(p_cell_population->rGetMesh().GetNumEdges());
+    std::vector<unsigned> traversed_edges;
+    for (unsigned node_index=0; node_index<num_nodes; node_index++)
+    {
+        Node<DIM>* p_this_node = p_cell_population->GetNode(node_index);
+        // Find the indices of the elements owned by this node
+        std::set<unsigned> containing_elem_indices = p_cell_population->GetNode(node_index)->rGetContainingElementIndices();
+
+        // Iterate over these elements
+        for (std::set<unsigned>::iterator iter = containing_elem_indices.begin();
+             iter != containing_elem_indices.end();
+             ++iter)
+        {
+            // Get this element, its index and its number of nodes
+            VertexElement<DIM, DIM>* p_element = p_cell_population->GetElement(*iter);
+            unsigned num_nodes_elem = p_element->GetNumNodes();
+            // Find the local index of this node in this element
+            unsigned local_index = p_element->GetNodeLocalIndex(node_index);
+            // Get the previous and next nodes in this element
+            unsigned previous_node_local_index = (num_nodes_elem+local_index-1)%num_nodes_elem;
+            Node<DIM>* p_previous_node = p_element->GetNode(previous_node_local_index);
+            std::set<unsigned> shared_elements = GetSharedElements(p_previous_node, p_this_node, *p_cell_population);
+            unsigned edgeLocalIndex = GetEdgeLocalIndex(p_previous_node, p_this_node, *p_cell_population, shared_elements);
+            double edgeLength = norm_2(p_previous_node->rGetLocation() - p_this_node->rGetLocation());
+
+            if (std::find(traversed_edges.begin(), traversed_edges.end(), edgeLocalIndex) == traversed_edges.end())
+            {
+                traversed_edges.push_back(edgeLocalIndex);
+                CalculateLineTension(edgeLocalIndex, edgeLength, shared_elements);
+            }
+        }
+    }
+}
+
+
+template<unsigned DIM>
+std::set<unsigned> Zuluetaforce<DIM>::GetSharedElements(Node<DIM>* pNodeA, Node<DIM>* pNodeB, VertexBasedCellPopulation<DIM>& rVertexCellPopulation)
+{
+    // Find the indices of the elements owned by each node
+    std::set<unsigned> elements_containing_nodeA = pNodeA->rGetContainingElementIndices();
+    std::set<unsigned> elements_containing_nodeB = pNodeB->rGetContainingElementIndices();
+
+    // Find common elements
+    std::set<unsigned> shared_elements;
+    std::set_intersection(elements_containing_nodeA.begin(),
+                          elements_containing_nodeA.end(),
+                          elements_containing_nodeB.begin(),
+                          elements_containing_nodeB.end(),
+                          std::inserter(shared_elements, shared_elements.begin()));
+    assert(!shared_elements.empty());
+    return shared_elements;
+}
+
+template<unsigned DIM>
+unsigned Zuluetaforce<DIM>::GetEdgeLocalIndex(Node<DIM>* pNodeA, Node<DIM>* pNodeB, VertexBasedCellPopulation<DIM>& rVertexCellPopulation, std::set<unsigned> shared_elements)
+{
+    std::set<unsigned>::iterator iter = shared_elements.begin();
+    // Get this element, its index and its number of nodes
+    VertexElement<DIM, DIM>* p_element = rVertexCellPopulation.GetElement(*iter);
+    unsigned num_edges_elem = p_element->GetNumEdges();
+    unsigned edgeLocalIndex = 0;
+    for (unsigned i = 0; i < num_edges_elem; i++)
+    {
+        if (p_element->GetEdge(i)->ContainsNode(pNodeA) && p_element->GetEdge(i)->ContainsNode(pNodeB))
+        {
+            edgeLocalIndex = p_element->GetEdge(i)->GetIndex();
+            break;
+        }
+    }
+    return edgeLocalIndex;
+}
+
+template<unsigned DIM>
+double Zuluetaforce<DIM>::GetLineTensionParameter(Node<DIM>* pNodeA, Node<DIM>* pNodeB, VertexBasedCellPopulation<DIM>& rVertexCellPopulation)
+{
+    std::set<unsigned> shared_elements = GetSharedElements(pNodeA, pNodeB, rVertexCellPopulation);
+    unsigned edgeLocalIndex = GetEdgeLocalIndex(pNodeA, pNodeB, rVertexCellPopulation, shared_elements);
+    double line_tension_parameter_in_calculation = mline_tension_map[edgeLocalIndex];
+    if (shared_elements.size() == 2)
+    {
+        line_tension_parameter_in_calculation *= 0.5;
+    }
+    return line_tension_parameter_in_calculation;
+}
+
+template<unsigned DIM>
+double Zuluetaforce<DIM>::UpdateMyosinLevelLineTension(VertexBasedCellPopulation<DIM>* p_cell_population)
+{
+    unsigned num_nodes = p_cell_population->GetNumNodes();
+    std::vector<unsigned> traversed_edges;
+    for (unsigned node_index=0; node_index<num_nodes; node_index++)
+    {
+        Node<DIM>* p_this_node = p_cell_population->GetNode(node_index);
+        // Find the indices of the elements owned by this node
+        std::set<unsigned> containing_elem_indices = p_cell_population->GetNode(node_index)->rGetContainingElementIndices();
+
+        // Iterate over these elements
+        for (std::set<unsigned>::iterator iter = containing_elem_indices.begin();
+             iter != containing_elem_indices.end();
+             ++iter)
+        {
+            // Get this element, its index and its number of nodes
+            VertexElement<DIM, DIM>* p_element = p_cell_population->GetElement(*iter);
+            unsigned num_nodes_elem = p_element->GetNumNodes();
+            // Find the local index of this node in this element
+            unsigned local_index = p_element->GetNodeLocalIndex(node_index);
+            // Get the previous and next nodes in this element
+            unsigned previous_node_local_index = (num_nodes_elem+local_index-1)%num_nodes_elem;
+            Node<DIM>* p_previous_node = p_element->GetNode(previous_node_local_index);
+            std::set<unsigned> shared_elements = GetSharedElements(p_previous_node, p_this_node, *p_cell_population);
+            unsigned edgeLocalIndex = GetEdgeLocalIndex(p_previous_node, p_this_node, *p_cell_population, shared_elements);
+            double edgeLength = norm_2(p_previous_node->rGetLocation() - p_this_node->rGetLocation());
+
+            if (std::find(traversed_edges.begin(), traversed_edges.end(), edgeLocalIndex) == traversed_edges.end())
+            {
+                traversed_edges.push_back(edgeLocalIndex);
+                CalculateMyosinLevel(edgeLocalIndex, edgeLength);
+                CalculateLineTension(edgeLocalIndex, edgeLength, shared_elements);
+            }
+        }
+    }
+}
+
+template<unsigned DIM>
+void FarhadifarForceFluctuation<DIM>::CalculateLineTension(unsigned edgeLocalIndex, double edgeLength, std::set<unsigned> shared_elements)
+{
+    double line_tension_in_calculation = mLineTension[edgeLocalIndex];
+    if (shared_elements.size() == 2)
+    {
+        line_tension_in_calculation = GetNonBoundaryLineTensionParameter(edgeLocalIndex, edgeLength)
+    }
+    else
+    {
+        line_tension_in_calculation = GetBoundaryLineTensionParameter(edgeLocalIndex, edgeLength);
+    }
+    mLineTension[edgeLocalIndex] = line_tension_in_calculation;
+}
+
+template<unsigned DIM>
+void FarhadifarForceFluctuation<DIM>::CalculateMyosinLevel(unsigned edgeLocalIndex, double edgeLength)
+{
+
+    double myosin_level_in_calculation = mMyosinLevels[edgeLocalIndex];
+    double deformation = edgeLength - mRestLengths[edgeLocalIndex];
+    double step_function = deformation > 0 ? 1 : 0;
+
+    double kplus = mkplusConstant + step_function * mAmax * pow(deformation, mHillCoefficient) / (pow(deformation, mHillCoefficient) + pow(mK, mHillCoefficient));
+    double kminus = mk1 * exp(-mk2 * mLineTension[edgeLocalIndex]);
+    myosin_level_in_calculation += mDt * (kplus * mmc - kminus * myosin_level_in_calculation);
+    
+    mMyosinLevels[edgeLocalIndex] = myosin_level_in_calculation;
+}
+
+
+template<unsigned DIM>
+double Zuluetaforce<DIM>::GetBoundaryLineTensionParameter(unsigned edgeIndex, double edgeLength)
+{
+    double deformation = edgeLength - mRestLengths[edgeIndex]
+    double deformation_contribution = mmu * deformation;
+    double myosin_contribution = mbeta * mMyosinLevels[edgeIndex];
+    return myosin_contribution + deformation_contribution;
+}
+
+template<unsigned DIM>
+double Zuluetaforce<DIM>::GetNonBoundaryLineTensionParameter(unsigned edgeIndex, double edgeLength)
+{
+    return mgamma + mmu * (edgeLength - mRestLengths[edgeIndex]);
+}
 
 template<unsigned DIM>
 double Zuluetaforce<DIM>::GetAreaElasticityParameter()
@@ -222,6 +408,36 @@ template<unsigned DIM>
 void Zuluetaforce<DIM>::SetTargetAreaParameter(double targetAreaParameter)
 {
     mTargetAreaParameter = targetAreaParameter;
+}
+
+template<unsigned DIM>
+void Zuluetaforce<DIM>::SetTensionParameter(double beta, doulbe mu, double gamma)
+{
+    mbeta = beta;
+    mmu = mu;
+    mgamma = gamma;
+}
+
+template<unsigned DIM>
+void Zuluetaforce<DIM>::Setmc(double mc)
+{
+    mmc = mc;
+}
+
+template<unsigned DIM>
+void Zuluetaforce<DIM>::Setkplus(double Amax, double K, double kplusConstant, double HillCoefficient)
+{
+    mAmax = Amax;
+    mK = K;
+    mkplusConstant = kplusConstant;
+    mHillCoefficient = HillCoefficient;
+}
+
+template<unsigned DIM>
+void Zuluetaforce<DIM>::Setkminus(double k1, double k2)
+{
+    mk1 = k1;
+    mk2 = k2;
 }
 
 template<unsigned DIM>

@@ -150,14 +150,17 @@ void FarhadifarForce<DIM>::AddForceContribution(AbstractCellPopulation<DIM>& rCe
             double previous_edge_line_tension_parameter = GetLineTensionParameter(p_previous_node, p_this_node, *p_cell_population);
             double next_edge_line_tension_parameter = GetLineTensionParameter(p_this_node, p_next_node, *p_cell_population);
 
+            double previous_edgeLength = norm_2(p_previous_node->rGetLocation() - p_this_node->rGetLocation());
+            double next_edgeLength = norm_2(p_this_node->rGetLocation() - p_next_node->rGetLocation());
+
             // Compute the gradient of each these edges, computed at the present node
             c_vector<double, DIM> previous_edge_gradient =
                     -p_cell_population->rGetMesh().GetNextEdgeGradientOfElementAtNode(p_element, previous_node_local_index);
             c_vector<double, DIM> next_edge_gradient = p_cell_population->rGetMesh().GetNextEdgeGradientOfElementAtNode(p_element, local_index);
 
             // Add the force contribution from cell-cell and cell-boundary line tension (note the minus sign)
-            line_tension_contribution -= previous_edge_line_tension_parameter*previous_edge_gradient +
-                    next_edge_line_tension_parameter*next_edge_gradient;
+            line_tension_contribution -= previous_edge_line_tension_parameter*previous_edge_gradient*previous_edgeLength +
+                    next_edge_line_tension_parameter*next_edge_gradient*next_edgeLength;
 
             // Add the force contribution from this cell's perimeter contractility (note the minus sign)
             c_vector<double, DIM> element_perimeter_gradient;

@@ -82,6 +82,7 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "ForwardEulerNumericalMethod.hpp"
 #include "NagaiHondaForce.hpp"
+#include "FarhadifarForce.hpp"
 #include "FarhadifarForceFluctuation.hpp"
 #include "ZuluetaForce.hpp"
 /* This force law assumes that cells possess a "target area" property which determines the size of each
@@ -240,13 +241,16 @@ public:
         /* We now make a pointer to an appropriate force and pass it to the
          * `OffLatticeSimulation`.
          */
-        MAKE_PTR(FarhadifarForceFluctuation<2>, p_force);
-
-        double elasticity = 0;
+        //MAKE_PTR(FarhadifarForceFluctuation<2>, p_force);
+        //MAKE_PTR(FarhadifarForce<2>, p_force);
+        MAKE_PTR(ZuluetaForce<2>, p_force);
+        /*
+        double elasticity = 1;
         double target_area = 16.97;
-        double contractility = 0.0;
+        double contractility = 0.04;
         double line_tension = 0.12;
-        double bd_line_tension = 1;
+        double bd_line_tension = 0.12;
+        
         double Dt = 0.01*60*60;
         double tau = 15;
         double sigma = 0.025;
@@ -258,7 +262,7 @@ public:
         p_force->SetTargetAreaParameter(target_area);
         p_force->SetPerimeterContractilityParameter(contractility);
         p_force->SetLineTensionParameter(line_tension);
-        p_force->SetBoundaryLineTensionParameter(bd_line_tension);
+        p_force->SetBoundaryLineTensionParameter(bd_line_tension);*/
 
         simulator.AddForce(p_force);
 
