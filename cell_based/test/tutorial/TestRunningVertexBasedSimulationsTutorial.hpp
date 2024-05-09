@@ -83,6 +83,7 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "ForwardEulerNumericalMethod.hpp"
 #include "NagaiHondaForce.hpp"
 #include "FarhadifarForceFluctuation.hpp"
+#include "ZuluetaForce.hpp"
 /* This force law assumes that cells possess a "target area" property which determines the size of each
  * cell in the simulation. In order to assign target areas to cells and update them in each time step, we need
  * the next header file.
@@ -241,13 +242,13 @@ public:
          */
         MAKE_PTR(FarhadifarForceFluctuation<2>, p_force);
 
-        double elasticity = 1;
+        double elasticity = 0;
         double target_area = 16.97;
-        double contractility = 0.04;
+        double contractility = 0.0;
         double line_tension = 0.12;
-        double bd_line_tension = 1.0;
+        double bd_line_tension = 1;
         double Dt = 0.01*60*60;
-        double tau = 20;
+        double tau = 15;
         double sigma = 0.025;
 
         p_force->SetDt(Dt);

@@ -292,7 +292,7 @@ void FarhadifarForceFluctuation<DIM>::CalculatePerturbedLineTension(unsigned edg
     line_tension_parameter_in_calculation += fluctuation;
     if (shared_elements.size() == 1)
     {
-        std::cout << "Boundary line tension parameter = " << line_tension_parameter_in_calculation << "\n";
+        //std::cout << "Boundary line tension parameter = " << line_tension_parameter_in_calculation << "\n";
     }
     mline_tension_map[edgeLocalIndex] = std::max(0.0, line_tension_parameter_in_calculation);
 }
