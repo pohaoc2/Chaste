@@ -41,6 +41,8 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "Exception.hpp"
 
 #include "AbstractForce.hpp"
+#include "EdgeHelper.hpp"
+#include "Edge.hpp"
 #include "VertexBasedCellPopulation.hpp"
 
 #include <iostream>
@@ -101,9 +103,9 @@ protected:
     double mk2;
     double mDt;
 
-    std::vector<double> mRestLengths;
-    std::vector<double> mMyosinLevels;
-    std::vector<double> mLineTension;
+    std::vector<Edge<DIM>*> mInitialEdges;
+    //std::unordered_map<Edge<DIM>, double> mMyosinLevels;
+    //std::unordered_map<Edge<DIM>, double> mLineTension;
 
 public:
 
@@ -157,14 +159,14 @@ public:
     void InitializeLineTension(VertexBasedCellPopulation<DIM>* p_cell_population);
 
     void UpdateMyosinLevelLineTension(VertexBasedCellPopulation<DIM>* p_cell_population);
-    void CalculateLineTension(unsigned edgeLocalIndex, double edgeLength, std::set<unsigned> shared_elements);
-    void CalculateMyosinLevel(unsigned edgeLocalIndex, double edgeLength);
-    double GetBoundaryLineTensionParameter(unsigned edgeIndex, double edgeLength);
-    double GetNonBoundaryLineTensionParameter(unsigned edgeIndex, double edgeLength);
+    void CalculateLineTension(Edge<DIM> edge, double edgeLength, std::set<unsigned> shared_elements);
+    void CalculateMyosinLevel(Edge<DIM> edge, double edgeLength);
+    double GetBoundaryLineTensionParameter(Edge<DIM> edge, double edgeLength);
+    double GetNonBoundaryLineTensionParameter(Edge<DIM> edge, double edgeLength);
     std::set<unsigned> GetSharedElements(Node<DIM>* pNodeA, Node<DIM>* pNodeB, VertexBasedCellPopulation<DIM>& rVertexCellPopulation);
     unsigned GetEdgeLocalIndex(Node<DIM>* pNodeA, Node<DIM>* pNodeB, VertexBasedCellPopulation<DIM>& rVertexCellPopulation, std::set<unsigned> shared_elements);
     double GetLineTensionParameter(Node<DIM>* pNodeA, Node<DIM>* pNodeB, VertexBasedCellPopulation<DIM>& rVertexCellPopulation);
-    double CalculateMyosinContribution(unsigned edgeIndex, double edgeLength, double deformation);
+    double CalculateMyosinContribution(Edge<DIM> edge, double edgeLength, double deformation);
     
     void SetTensionParameter(double beta, double mu, double gamma);
     void Setmc(double mc);
