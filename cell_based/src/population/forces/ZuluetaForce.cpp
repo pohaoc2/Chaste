@@ -42,14 +42,15 @@ Zuluetaforce<DIM>::Zuluetaforce()
      mTargetAreaParameter(1.0),
      mbeta(0.602),
      mmu(0.02),
+     mgamma(0.1),
      mmc(0.13),
      mAmax(0.8),
      mK(0.5),
      mkplusConstant(0.009),
+     mHillCoefficient(5),
      mk1(0.047),
      mk2(8),
-     mgamma(0.1),
-     mHillCoefficient(5)
+     mDt(0.01)
 {
 }
 
@@ -127,6 +128,7 @@ void Zuluetaforce<DIM>::AddForceContribution(AbstractCellPopulation<DIM>& rCellP
          * to the free energy gradient from each of these CellPtrs.
          */
         c_vector<double, DIM> area_elasticity_contribution = zero_vector<double>(DIM);
+        c_vector<double, DIM> line_tension_contribution = zero_vector<double>(DIM);
 
         // Find the indices of the elements owned by this node
         std::set<unsigned> containing_elem_indices = p_cell_population->GetNode(node_index)->rGetContainingElementIndices();
@@ -159,11 +161,9 @@ void Zuluetaforce<DIM>::AddForceContribution(AbstractCellPopulation<DIM>& rCellP
 
             // Compute the line tension parameter for each of these edges - be aware that this is half of the actual
             // value for internal edges since we are looping over each of the internal edges twice
-            double previous_edgeLength = norm_2(p_previous_node->rGetLocation() - p_this_node->rGetLocation());
-            double next_edgeLength = norm_2(p_this_node->rGetLocation() - p_next_node->rGetLocation());
 
-            double previous_edge_line_tension_parameter = GetLineTensionParameter(p_previous_node, p_this_node, previous_edgeLength, *p_cell_population);
-            double next_edge_line_tension_parameter = GetLineTensionParameter(p_this_node, p_next_node, next_edgeLength, *p_cell_population);
+            double previous_edge_line_tension_parameter = GetLineTensionParameter(p_previous_node, p_this_node, *p_cell_population);
+            double next_edge_line_tension_parameter = GetLineTensionParameter(p_this_node, p_next_node, *p_cell_population);
 
 
             // Compute the gradient of each these edges, computed at the present node
@@ -185,15 +185,12 @@ void Zuluetaforce<DIM>::InitializeRestLengths(VertexBasedCellPopulation<DIM>* p_
 {
     std::vector<double> rest_lengths;
     unsigned numEdges = p_cell_population->rGetMesh().GetNumEdges();
-    unsigned num_nodes = p_cell_population->GetNumNodes();
     rest_lengths.resize(numEdges);
     // Iterate over edges in the cell population
     for (unsigned edge_index=0; edge_index<numEdges; edge_index++)
     {
-        // Get this edge
-        VertexElement<DIM, DIM>* p_edge = p_cell_population->rGetMesh().GetEdge(edge_index);
         // Get the rest length of this edge
-        double rest_length = p_edge->rGetLength();
+        double rest_length = p_cell_population->rGetMesh().GetEdge(edge_index)->rGetLength();
         rest_lengths[edge_index] = rest_length;
     }
     mRestLengths = rest_lengths;
@@ -208,7 +205,7 @@ void Zuluetaforce<DIM>::InitializeMyosinLevel(VertexBasedCellPopulation<DIM>* p_
     // Iterate over edges in the cell population
     for (unsigned edge_index=0; edge_index<numEdges; edge_index++)
     {
-        myosin_levels[edge_index] = 1.0
+        myosin_levels[edge_index] = 1.0;
     }
     mMyosinLevels = myosin_levels;
 }
@@ -294,7 +291,7 @@ double Zuluetaforce<DIM>::GetLineTensionParameter(Node<DIM>* pNodeA, Node<DIM>* 
 {
     std::set<unsigned> shared_elements = GetSharedElements(pNodeA, pNodeB, rVertexCellPopulation);
     unsigned edgeLocalIndex = GetEdgeLocalIndex(pNodeA, pNodeB, rVertexCellPopulation, shared_elements);
-    double line_tension_parameter_in_calculation = mline_tension_map[edgeLocalIndex];
+    double line_tension_parameter_in_calculation = mLineTension[edgeLocalIndex];
     if (shared_elements.size() == 2)
     {
         line_tension_parameter_in_calculation *= 0.5;
@@ -303,7 +300,7 @@ double Zuluetaforce<DIM>::GetLineTensionParameter(Node<DIM>* pNodeA, Node<DIM>* 
 }
 
 template<unsigned DIM>
-double Zuluetaforce<DIM>::UpdateMyosinLevelLineTension(VertexBasedCellPopulation<DIM>* p_cell_population)
+void Zuluetaforce<DIM>::UpdateMyosinLevelLineTension(VertexBasedCellPopulation<DIM>* p_cell_population)
 {
     unsigned num_nodes = p_cell_population->GetNumNodes();
     std::vector<unsigned> traversed_edges;
@@ -341,12 +338,12 @@ double Zuluetaforce<DIM>::UpdateMyosinLevelLineTension(VertexBasedCellPopulation
 }
 
 template<unsigned DIM>
-void FarhadifarForceFluctuation<DIM>::CalculateLineTension(unsigned edgeLocalIndex, double edgeLength, std::set<unsigned> shared_elements)
+void Zuluetaforce<DIM>::CalculateLineTension(unsigned edgeLocalIndex, double edgeLength, std::set<unsigned> shared_elements)
 {
     double line_tension_in_calculation = mLineTension[edgeLocalIndex];
     if (shared_elements.size() == 2)
     {
-        line_tension_in_calculation = GetNonBoundaryLineTensionParameter(edgeLocalIndex, edgeLength)
+        line_tension_in_calculation = GetNonBoundaryLineTensionParameter(edgeLocalIndex, edgeLength);
     }
     else
     {
@@ -356,7 +353,7 @@ void FarhadifarForceFluctuation<DIM>::CalculateLineTension(unsigned edgeLocalInd
 }
 
 template<unsigned DIM>
-void FarhadifarForceFluctuation<DIM>::CalculateMyosinLevel(unsigned edgeLocalIndex, double edgeLength)
+void Zuluetaforce<DIM>::CalculateMyosinLevel(unsigned edgeLocalIndex, double edgeLength)
 {
 
     double myosin_level_in_calculation = mMyosinLevels[edgeLocalIndex];
@@ -374,7 +371,7 @@ void FarhadifarForceFluctuation<DIM>::CalculateMyosinLevel(unsigned edgeLocalInd
 template<unsigned DIM>
 double Zuluetaforce<DIM>::GetBoundaryLineTensionParameter(unsigned edgeIndex, double edgeLength)
 {
-    double deformation = edgeLength - mRestLengths[edgeIndex]
+    double deformation = edgeLength - mRestLengths[edgeIndex];
     double deformation_contribution = mmu * deformation;
     double myosin_contribution = mbeta * mMyosinLevels[edgeIndex];
     return myosin_contribution + deformation_contribution;
@@ -411,7 +408,7 @@ void Zuluetaforce<DIM>::SetTargetAreaParameter(double targetAreaParameter)
 }
 
 template<unsigned DIM>
-void Zuluetaforce<DIM>::SetTensionParameter(double beta, doulbe mu, double gamma)
+void Zuluetaforce<DIM>::SetTensionParameter(double beta, double mu, double gamma)
 {
     mbeta = beta;
     mmu = mu;
@@ -439,6 +436,13 @@ void Zuluetaforce<DIM>::Setkminus(double k1, double k2)
     mk1 = k1;
     mk2 = k2;
 }
+
+template<unsigned DIM>
+void Zuluetaforce<DIM>::SetDt(double dt)
+{
+    mDt = dt;
+}
+
 
 template<unsigned DIM>
 void Zuluetaforce<DIM>::OutputForceParameters(out_stream& rParamsFile)

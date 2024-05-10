@@ -99,8 +99,7 @@ protected:
     double mHillCoefficient;
     double mk1;
     double mk2;
-
-
+    double mDt;
 
     std::vector<double> mRestLengths;
     std::vector<double> mMyosinLevels;
@@ -157,7 +156,7 @@ public:
     void InitializeMyosinLevel(VertexBasedCellPopulation<DIM>* p_cell_population);
     void InitializeLineTension(VertexBasedCellPopulation<DIM>* p_cell_population);
 
-    double UpdateMyosinLevelLineTension(VertexBasedCellPopulation<DIM>* p_cell_population);
+    void UpdateMyosinLevelLineTension(VertexBasedCellPopulation<DIM>* p_cell_population);
     void CalculateLineTension(unsigned edgeLocalIndex, double edgeLength, std::set<unsigned> shared_elements);
     void CalculateMyosinLevel(unsigned edgeLocalIndex, double edgeLength);
     double GetBoundaryLineTensionParameter(unsigned edgeIndex, double edgeLength);
@@ -167,10 +166,11 @@ public:
     double GetLineTensionParameter(Node<DIM>* pNodeA, Node<DIM>* pNodeB, VertexBasedCellPopulation<DIM>& rVertexCellPopulation);
     double CalculateMyosinContribution(unsigned edgeIndex, double edgeLength, double deformation);
     
-    void SetTensionParameter(double lineTensionParameter);
+    void SetTensionParameter(double beta, double mu, double gamma);
     void Setmc(double mc);
     void Setkplus(double Amax, double K, double kplusConstant, double HillCoefficient);
     void Setkminus(double k1, double k2);
+    void SetDt(double dt);
     
 
     /**
