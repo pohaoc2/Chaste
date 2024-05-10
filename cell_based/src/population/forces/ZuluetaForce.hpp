@@ -52,7 +52,7 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 template<unsigned DIM>
-class Zuluetaforce : public AbstractForce<DIM>
+class ZuluetaForce : public AbstractForce<DIM>
 {
 friend class TestForces;
 
@@ -110,12 +110,12 @@ public:
     /**
      * Constructor.
      */
-    Zuluetaforce();
+    ZuluetaForce();
 
     /**
      * Destructor.
      */
-    virtual ~Zuluetaforce();
+    virtual ~ZuluetaForce();
 
     /**
      * Overridden AddForceContribution() method.
@@ -182,6 +182,6 @@ public:
 };
 
 #include "SerializationExportWrapper.hpp"
-EXPORT_TEMPLATE_CLASS_SAME_DIMS(Zuluetaforce)
+EXPORT_TEMPLATE_CLASS_SAME_DIMS(ZuluetaForce)
 
 #endif /*ZULUETAFORCE_HPP_*/
