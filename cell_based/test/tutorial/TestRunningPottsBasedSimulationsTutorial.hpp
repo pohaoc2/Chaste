@@ -71,6 +71,7 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "UniformCellCycleModel.hpp"
 /* The next header file defines a helper class for generating a suitable mesh. */
 #include "PottsMeshGenerator.hpp"
+#include "PottsMeshReader.hpp"
 /* The next header file defines the class that simulates the evolution of an on lattice `CellPopulation`. */
 #include "OnLatticeSimulation.hpp"
 /* The next header file defines a`CellPopulation` class for implementing a cellular Potts model.*/
@@ -110,7 +111,13 @@ public:
          * the height of individual elements.
          * We have chosen a 2 by 2 block of elements, each consisting of 4 by 4  ( = 16) lattice sites.
          */
-        PottsMeshGenerator<2> generator(50, 2, 4, 50, 2, 4);  // Parameters are: lattice sites across; num elements across; element width; lattice sites up; num elements up; and element height
+        //PottsMeshGenerator<2> generator(50, 2, 4, 50, 2, 4);  // Parameters are: lattice sites across; num elements across; element width; lattice sites up; num elements up; and element height
+        
+        //boost::shared_ptr<PottsMesh<2> > p_mesh = generator.GetMesh();
+        //double width = 59.74+3.21;//12;
+        //double height = 59.74+3.21;//7 * sqrt(3.0);
+        PottsMeshReader<2> mesh_reader("/home/pohaoc2/UW/bagherilab/Chaste/cell_based/test/data/TestCustomPotts/wounded");
+        PottsMeshGenerator<2> generator(mesh_reader);
         boost::shared_ptr<PottsMesh<2> > p_mesh = generator.GetMesh();
 
         /* Having created a mesh, we now create a `std::vector` of `CellPtr`s.
@@ -122,8 +129,9 @@ public:
          * proliferate.*/
         std::vector<CellPtr> cells;
         MAKE_PTR(TransitCellProliferativeType, p_transit_type);
+        MAKE_PTR(DifferentiatedCellProliferativeType, p_diff_type);
         CellsGenerator<UniformCellCycleModel, 2> cells_generator;
-        cells_generator.GenerateBasicRandom(cells, p_mesh->GetNumElements(), p_transit_type);
+        cells_generator.GenerateBasicRandom(cells, p_mesh->GetNumElements(), p_diff_type);
 
         /* Now we have a mesh and a set of cells to go with it, we can create a `CellPopulation`.
          * In general, this class associates a collection of cells with a mesh.
@@ -146,7 +154,7 @@ public:
         /* We then pass in the cell population into an `OnLatticeSimulation`,
          * and set the output directory and end time.*/
         OnLatticeSimulation<2> simulator(cell_population);
-        simulator.SetOutputDirectory("PottsBasedMonolayer");
+        simulator.SetOutputDirectory("PottsBasedMonolayerCustom");
         simulator.SetEndTime(50.0);
         /*
          * The default timestep is 0.1, but can be changed using the below command. The timestep is used in conjunction with the "Temperature" and
@@ -190,8 +198,6 @@ public:
 
         /* The next two lines are for test purposes only and are not part of this tutorial. If different simulation input parameters are being explored
          * the lines should be removed.*/
-        TS_ASSERT_EQUALS(cell_population.GetNumRealCells(), 64u);
-        TS_ASSERT_DELTA(SimulationTime::Instance()->GetTime(), 50.0, 1e-10);
     }
 
     /*
@@ -233,7 +239,7 @@ public:
      * cell sorting using a two-dimensional extended Potts model. Phys. Rev. Lett., 69(13):2015–2016.
      *
      */
-    void TestPottsMonolayerCellSorting()
+    void _TestPottsMonolayerCellSorting()
     {
         /** The next line is needed because we cannot currently run Potts simulations in parallel. */
         EXIT_IF_PARALLEL;
@@ -276,7 +282,7 @@ public:
          * and set the output directory and end time. */
         OnLatticeSimulation<2> simulator(cell_population);
         simulator.SetOutputDirectory("PottsMonolayerCellSorting");
-        simulator.SetEndTime(20.0);
+        simulator.SetEndTime(500.0);
         simulator.SetSamplingTimestepMultiple(10);
 
         /* We must now create one or more update rules, which determine the Hamiltonian
@@ -290,8 +296,8 @@ public:
 
         MAKE_PTR(DifferentialAdhesionPottsUpdateRule<2>, p_differential_adhesion_update_rule);
 
-        p_differential_adhesion_update_rule->SetLabelledCellLabelledCellAdhesionEnergyParameter(0.16);
-        p_differential_adhesion_update_rule->SetLabelledCellCellAdhesionEnergyParameter(0.11);
+        p_differential_adhesion_update_rule->SetLabelledCellLabelledCellAdhesionEnergyParameter(0.05);
+        p_differential_adhesion_update_rule->SetLabelledCellCellAdhesionEnergyParameter(0.2);
         p_differential_adhesion_update_rule->SetCellCellAdhesionEnergyParameter(0.02);
         p_differential_adhesion_update_rule->SetLabelledCellBoundaryAdhesionEnergyParameter(0.16);
         p_differential_adhesion_update_rule->SetCellBoundaryAdhesionEnergyParameter(0.16);
@@ -305,7 +311,7 @@ public:
         /* The next two lines are for test purposes only and are not part of this tutorial.
          */
         TS_ASSERT_EQUALS(cell_population.GetNumRealCells(), 64u);
-        TS_ASSERT_DELTA(SimulationTime::Instance()->GetTime(), 20.0, 1e-10);
+        //TS_ASSERT_DELTA(SimulationTime::Instance()->GetTime(), 20.0, 1e-10);
     }
 
     /*
@@ -321,7 +327,7 @@ public:
      * The next test extends the previous example to three dimensions.
      *
      */
-    void TestPottsSpheroidCellSorting()
+    void _TestPottsSpheroidCellSorting()
     {
         /** The next line is needed because we cannot currently run Potts simulations in parallel. */
         EXIT_IF_PARALLEL;

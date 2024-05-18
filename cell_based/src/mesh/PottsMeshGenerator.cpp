@@ -40,6 +40,51 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/shared_ptr.hpp>
 
 template<unsigned DIM>
+PottsMeshGenerator<DIM>::PottsMeshGenerator(AbstractMeshReader<DIM, DIM>& rMeshReader)
+{
+    unsigned num_nodes = rMeshReader.GetNumNodes();
+    unsigned num_elements = rMeshReader.GetNumElements();
+    rMeshReader.Reset();
+    std::vector<Node<DIM>*> nodes;
+    std::vector<PottsElement<DIM>*> elements;
+    std::vector<std::set<unsigned> > moore_neighbours;
+    std::vector<std::set<unsigned> > von_neumann_neighbours;
+    
+
+    // Add nodes
+    std::vector<double> node_data;
+    for (unsigned i=0; i<num_nodes; i++)
+    {
+        node_data = rMeshReader.GetNextNode();
+        unsigned is_boundary_node = false;
+        node_data.pop_back();
+        Node<DIM>* p_node = new Node<DIM>(i, node_data, is_boundary_node);
+        nodes.push_back(p_node);
+    }
+
+    rMeshReader.Reset();
+
+    // Add elements
+    ElementData element_data;
+    for (unsigned i=0; i<num_elements; i++)
+    {
+        element_data = rMeshReader.GetNextElementData();
+        std::vector<Node<DIM>*> element_nodes;
+        for (unsigned j=0; j<element_data.NodeIndices.size(); j++)
+        {
+            element_nodes.push_back(nodes[element_data.NodeIndices[j]]);
+        }
+        PottsElement<DIM>* p_element = new PottsElement<DIM>(i, element_nodes);
+        elements.push_back(p_element);
+    }
+
+
+    moore_neighbours.resize(num_nodes);
+    von_neumann_neighbours.resize(num_nodes);
+    mpMesh = boost::make_shared<PottsMesh<DIM> >(nodes, elements, von_neumann_neighbours, moore_neighbours);
+}
+
+template<unsigned DIM>
 PottsMeshGenerator<DIM>::PottsMeshGenerator(unsigned numNodesAcross, unsigned numElementsAcross, unsigned elementWidth,
                                             unsigned numNodesUp, unsigned numElementsUp, unsigned elementHeight,
                                             unsigned numNodesDeep, unsigned numElementsDeep, unsigned elementDepth,

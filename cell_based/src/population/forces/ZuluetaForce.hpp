@@ -104,6 +104,7 @@ protected:
     double mDt;
 
     std::vector<Edge<DIM>*> mInitialEdges;
+    std::vector<double> mRestLengths;
     //std::unordered_map<Edge<DIM>, double> mMyosinLevels;
     //std::unordered_map<Edge<DIM>, double> mLineTension;
 

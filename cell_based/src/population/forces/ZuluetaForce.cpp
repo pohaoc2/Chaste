@@ -71,7 +71,7 @@ void ZuluetaForce<DIM>::AddForceContribution(AbstractCellPopulation<DIM>& rCellP
 
     if (mRestLengths.size() == 0)
     {
-        InitializeRestLengths(static_cast<VertexBasedCellPopulation<DIM>*>(&rCellPopulation));
+        //InitializeRestLengths(static_cast<VertexBasedCellPopulation<DIM>*>(&rCellPopulation));
         //InitializeMyosinLevel(static_cast<VertexBasedCellPopulation<DIM>*>(&rCellPopulation));
         //InitializeLineTension(static_cast<VertexBasedCellPopulation<DIM>*>(&rCellPopulation));
     }
