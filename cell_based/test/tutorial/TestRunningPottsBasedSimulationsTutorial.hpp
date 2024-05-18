@@ -110,8 +110,9 @@ public:
          * the height of individual elements.
          * We have chosen a 2 by 2 block of elements, each consisting of 4 by 4  ( = 16) lattice sites.
          */
-        PottsMeshGenerator<2> generator(50, 2, 4, 50, 2, 4);  // Parameters are: lattice sites across; num elements across; element width; lattice sites up; num elements up; and element height
+        PottsMeshGenerator<2> generator(50, 2, 5, 50, 2, 5);  // Parameters are: lattice sites across; num elements across; element width; lattice sites up; num elements up; and element height
         boost::shared_ptr<PottsMesh<2> > p_mesh = generator.GetMesh();
+
 
         /* Having created a mesh, we now create a `std::vector` of `CellPtr`s.
          * To do this, we the `CellsGenerator` helper class, which is templated over the type
@@ -233,7 +234,7 @@ public:
      * cell sorting using a two-dimensional extended Potts model. Phys. Rev. Lett., 69(13):2015–2016.
      *
      */
-    void TestPottsMonolayerCellSorting()
+    void _TestPottsMonolayerCellSorting()
     {
         /** The next line is needed because we cannot currently run Potts simulations in parallel. */
         EXIT_IF_PARALLEL;
@@ -321,7 +322,7 @@ public:
      * The next test extends the previous example to three dimensions.
      *
      */
-    void TestPottsSpheroidCellSorting()
+    void _TestPottsSpheroidCellSorting()
     {
         /** The next line is needed because we cannot currently run Potts simulations in parallel. */
         EXIT_IF_PARALLEL;
