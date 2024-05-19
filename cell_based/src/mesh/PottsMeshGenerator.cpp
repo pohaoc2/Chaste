@@ -45,13 +45,20 @@ PottsMeshGenerator<DIM>::PottsMeshGenerator(PottsMeshReader<DIM>& rMeshReader)
     unsigned num_nodes = rMeshReader.GetNumNodes();
     unsigned num_elements = rMeshReader.GetNumElements();
     unsigned num_voxels = rMeshReader.GetNumVoxels();
+    std::cout << "num_voxels: " << num_voxels << "\n";
+
+
     rMeshReader.Reset();
     std::vector<Node<DIM>*> nodes;
     std::vector<PottsElement<DIM>*> elements;
     std::vector<std::set<unsigned> > moore_neighbours;
+    std::vector<std::set<unsigned> > moore_neighbours2;
     std::vector<std::set<unsigned> > von_neumann_neighbours;
-    moore_neighbours.resize(num_nodes);
-    von_neumann_neighbours.resize(num_nodes);
+    std::vector<std::set<unsigned> > von_neumann_neighbours2;
+    moore_neighbours.resize(num_voxels);
+    moore_neighbours2.resize(num_voxels);
+    von_neumann_neighbours.resize(num_voxels);
+    von_neumann_neighbours2.resize(num_voxels);
 
     // Add nodes
     std::vector<double> node_data;
@@ -82,16 +89,647 @@ PottsMeshGenerator<DIM>::PottsMeshGenerator(PottsMeshReader<DIM>& rMeshReader)
 
     // Add neighbours
     std::set<unsigned> neighbour_indices;
+    std::set<unsigned> neighbour_indices2;
+    unsigned numNodesAcross = 61;
+    unsigned numNodesUp = 61;
+    unsigned numNodesDeep = 1;
+    bool isPeriodicInX = true;
+    bool isPeriodicInY = true;
+    bool isPeriodicInZ = true;
 
+    
     for (unsigned i=0; i<num_voxels; i++)
     {
         neighbour_indices = rMeshReader.GetNextMooreNeighbors();
-        moore_neighbours.push_back(neighbour_indices);
-        //neighbour_indices = rMeshReader.GetNextVonNeumannNeighbors();
-        //von_neumann_neighbours.push_back(neighbour_indices);
+        // print out indices of neighbours
+        //std::cout << "Moore neighbours for voxel " << i << ": ";
+        for (std::set<unsigned>::iterator it = neighbour_indices.begin(); it != neighbour_indices.end(); ++it)
+        {
+            //std::cout << *it << " ";
+        }
+        //std::cout << "\n";
+        if (neighbour_indices.size() != 8)
+        {
+            std::cout << "Error: voxel " << i << " has " << neighbour_indices.size() << " Moore neighbours\n";
+        }
+        moore_neighbours2[i] = neighbour_indices;
+        neighbour_indices = rMeshReader.GetNextVonNeumannNeighbors();
+        von_neumann_neighbours2[i] = neighbour_indices;
     }
+    if(true){
+    for (unsigned node_index=0; node_index<num_nodes; node_index++)
+    {
+        // Clear the set of neighbouring node indices
 
-    mpMesh = boost::make_shared<PottsMesh<DIM> >(nodes, elements, von_neumann_neighbours, moore_neighbours);
+        moore_neighbours[node_index].clear();
+
+        switch (DIM)
+        {
+            case 2:
+            {
+                assert(DIM == 2);
+                /*
+                 * This stores the available neighbours using the following numbering:
+                 *
+                 *  1-----0-----7
+                 *  |     |     |
+                 *  |     |     |
+                 *  2-----x-----6
+                 *  |     |     |
+                 *  |     |     |
+                 *  3-----4-----5
+                 */
+
+                // Create a vector of possible neighbouring node indices
+                std::vector<unsigned> moore_neighbour_indices_vector(8, node_index);
+                moore_neighbour_indices_vector[0] += numNodesAcross;
+                moore_neighbour_indices_vector[1] += numNodesAcross - 1;
+                moore_neighbour_indices_vector[2] -= 1;
+                moore_neighbour_indices_vector[3] -= numNodesAcross + 1;
+                moore_neighbour_indices_vector[4] -= numNodesAcross;
+                moore_neighbour_indices_vector[5] -= numNodesAcross - 1;
+                moore_neighbour_indices_vector[6] += 1;
+                moore_neighbour_indices_vector[7] += numNodesAcross + 1;
+
+                // Work out whether this node lies on any edge of the mesh
+                bool on_south_edge = (node_index < numNodesAcross);
+                bool on_north_edge = ((int) node_index > (int)numNodesAcross*((int)numNodesUp - 1) - 1);
+                bool on_west_edge = (node_index%numNodesAcross == 0);
+                bool on_east_edge = (node_index%numNodesAcross == numNodesAcross - 1);
+
+                if (isPeriodicInX)
+                {
+                    if (on_west_edge)
+                    {
+                        moore_neighbour_indices_vector[1] = node_index + 2*numNodesAcross - 1;
+                        moore_neighbour_indices_vector[2] = node_index + numNodesAcross - 1;
+                        moore_neighbour_indices_vector[3] = node_index - 1;
+                    }
+
+                    if (on_east_edge)
+                    {
+                        moore_neighbour_indices_vector[5] = node_index - 2*numNodesAcross + 1;
+                        moore_neighbour_indices_vector[6] = node_index - numNodesAcross + 1;
+                        moore_neighbour_indices_vector[7] = node_index + 1;
+                    }
+                }
+
+                if (isPeriodicInY)
+                {
+                    if (on_north_edge)
+                    {
+                        moore_neighbour_indices_vector[0] = node_index - numNodesAcross*(numNodesUp-1);
+                        moore_neighbour_indices_vector[1] = moore_neighbour_indices_vector[0] - 1;
+                        moore_neighbour_indices_vector[7] = moore_neighbour_indices_vector[0] + 1;
+
+                        if (on_west_edge)
+                        {
+                            moore_neighbour_indices_vector[1] = moore_neighbour_indices_vector[1] + numNodesAcross;
+                        }
+                        if (on_east_edge)
+                        {
+                            moore_neighbour_indices_vector[7] = moore_neighbour_indices_vector[7] - numNodesAcross;
+                        }
+                    }
+
+                    if (on_south_edge)
+                    {
+                        moore_neighbour_indices_vector[4] = node_index + numNodesAcross*(numNodesUp-1);
+                        moore_neighbour_indices_vector[3] = moore_neighbour_indices_vector[4] - 1;
+                        moore_neighbour_indices_vector[5] = moore_neighbour_indices_vector[4] + 1;
+
+                        if (on_west_edge)
+                        {
+                            moore_neighbour_indices_vector[3] = moore_neighbour_indices_vector[3] + numNodesAcross;
+                        }
+                        if (on_east_edge)
+                        {
+                            moore_neighbour_indices_vector[5] = moore_neighbour_indices_vector[5] - numNodesAcross;
+                        }
+                    }
+                }
+
+                if (isPeriodicInX)
+                {
+                    on_east_edge = false;
+                    on_west_edge = false;
+                }
+                if (isPeriodicInY)
+                {
+                    on_south_edge = false;
+                    on_north_edge = false;
+                }
+
+                // Create a vector of booleans for which neighbours are available
+                // Use the order N, NW, W, SW, S, SE, E, NE
+                std::vector<bool> available_neighbours = std::vector<bool>(8, true);
+                available_neighbours[0] = !on_north_edge;
+                available_neighbours[1] = !(on_north_edge || on_west_edge);
+                available_neighbours[2] = !on_west_edge;
+                available_neighbours[3] = !(on_south_edge || on_west_edge);
+                available_neighbours[4] = !on_south_edge;
+                available_neighbours[5] = !(on_south_edge || on_east_edge);
+                available_neighbours[6] = !on_east_edge;
+                available_neighbours[7] = !(on_north_edge || on_east_edge);
+
+                // Using neighbour_indices_vector and available_neighbours, store the indices of all available neighbours to the set all_neighbours
+                for (unsigned i=0; i<8; i++)
+                {
+                    if (available_neighbours[i])
+                    {
+                        assert(moore_neighbour_indices_vector[i] < nodes.size());
+                        moore_neighbours[node_index].insert(moore_neighbour_indices_vector[i]);
+                    }
+                }
+                break;
+            }
+            case 3:
+            {
+                assert(DIM ==3);
+                /*
+                 * This stores the available neighbours using the following numbering:
+                 *                      FRONT           BACK
+                 *  1-----0-----7   10-----9---16   19----18---25
+                 *  |     |     |   |     |     |   |     |     |
+                 *  |     |     |   |     |     |   |     |     |
+                 *  2-----x-----6   11----8-----15  20----17---24
+                 *  |     |     |   |     |     |   |     |     |
+                 *  |     |     |   |     |     |   |     |     |
+                 *  3-----4-----5   12----13----14  21---22----23
+                 */
+
+                // Create a vector of possible neighbouring node indices
+                std::vector<unsigned> moore_neighbour_indices_vector(26, node_index);
+                moore_neighbour_indices_vector[0] += numNodesAcross;
+                moore_neighbour_indices_vector[1] += numNodesAcross - 1;
+                moore_neighbour_indices_vector[2] -= 1;
+                moore_neighbour_indices_vector[3] -= numNodesAcross + 1;
+                moore_neighbour_indices_vector[4] -= numNodesAcross;
+                moore_neighbour_indices_vector[5] -= numNodesAcross - 1;
+                moore_neighbour_indices_vector[6] += 1;
+                moore_neighbour_indices_vector[7] += numNodesAcross + 1;
+                moore_neighbour_indices_vector[8] -= numNodesAcross*numNodesUp;
+                for (unsigned i=9; i<17; i++)
+                {
+                    moore_neighbour_indices_vector[i] = moore_neighbour_indices_vector[i-9]-numNodesAcross*numNodesUp;
+                }
+                moore_neighbour_indices_vector[17] += numNodesAcross*numNodesUp;
+                for (unsigned i=18; i<26; i++)
+                {
+                    moore_neighbour_indices_vector[i]=moore_neighbour_indices_vector[i-18]+numNodesAcross*numNodesUp;
+                }
+
+                // Work out whether this node lies on any edge of the mesh
+                bool on_south_edge = (node_index%(numNodesAcross*numNodesUp)<numNodesAcross);
+                bool on_north_edge = (node_index%(numNodesAcross*numNodesUp)>(numNodesAcross*numNodesUp-numNodesAcross-1));
+                bool on_west_edge = (node_index%numNodesAcross == 0);
+                bool on_east_edge = (node_index%numNodesAcross == numNodesAcross - 1);
+                bool on_front_edge = (node_index < numNodesAcross*numNodesUp);
+                bool on_back_edge = (node_index > numNodesAcross*numNodesUp*(numNodesDeep-1)-1);
+
+                if (isPeriodicInX)
+                {
+                    if (on_west_edge)
+                    {
+                        moore_neighbour_indices_vector[1] = node_index + 2*numNodesAcross - 1;
+                        moore_neighbour_indices_vector[2] = node_index + numNodesAcross - 1;
+                        moore_neighbour_indices_vector[3] = node_index - 1;
+
+                        moore_neighbour_indices_vector[10] = moore_neighbour_indices_vector[1] - numNodesAcross*numNodesUp;
+                        moore_neighbour_indices_vector[11] = moore_neighbour_indices_vector[2] - numNodesAcross*numNodesUp;
+                        moore_neighbour_indices_vector[12] = moore_neighbour_indices_vector[3] - numNodesAcross*numNodesUp;
+
+                        moore_neighbour_indices_vector[19] = moore_neighbour_indices_vector[1] + numNodesAcross*numNodesUp;
+                        moore_neighbour_indices_vector[20] = moore_neighbour_indices_vector[2] + numNodesAcross*numNodesUp;
+                        moore_neighbour_indices_vector[21] = moore_neighbour_indices_vector[3] + numNodesAcross*numNodesUp;
+                    }
+
+                    if (on_east_edge)
+                    {
+                        moore_neighbour_indices_vector[5] = node_index - 2*numNodesAcross + 1;
+                        moore_neighbour_indices_vector[6] = node_index - numNodesAcross + 1;
+                        moore_neighbour_indices_vector[7] = node_index + 1;
+
+                        moore_neighbour_indices_vector[14] = moore_neighbour_indices_vector[5] - numNodesAcross*numNodesUp;
+                        moore_neighbour_indices_vector[15] = moore_neighbour_indices_vector[6] - numNodesAcross*numNodesUp;
+                        moore_neighbour_indices_vector[16] = moore_neighbour_indices_vector[7] - numNodesAcross*numNodesUp;
+
+                        moore_neighbour_indices_vector[23] = moore_neighbour_indices_vector[5] + numNodesAcross*numNodesUp;
+                        moore_neighbour_indices_vector[24] = moore_neighbour_indices_vector[6] + numNodesAcross*numNodesUp;
+                        moore_neighbour_indices_vector[25] = moore_neighbour_indices_vector[7] + numNodesAcross*numNodesUp;
+                    }
+                }
+
+                if (isPeriodicInY)
+                {
+                    if (on_north_edge)
+                    {
+                        moore_neighbour_indices_vector[0] = node_index - numNodesAcross*(numNodesUp-1);
+                        moore_neighbour_indices_vector[1] = moore_neighbour_indices_vector[0] - 1;
+                        moore_neighbour_indices_vector[7] = moore_neighbour_indices_vector[0] + 1;
+
+                        moore_neighbour_indices_vector[10] = moore_neighbour_indices_vector[1] - numNodesAcross*numNodesUp;
+                        moore_neighbour_indices_vector[9] = moore_neighbour_indices_vector[0] - numNodesAcross*numNodesUp;
+                        moore_neighbour_indices_vector[16] = moore_neighbour_indices_vector[7] - numNodesAcross*numNodesUp;
+
+                        moore_neighbour_indices_vector[19] = moore_neighbour_indices_vector[1] + numNodesAcross*numNodesUp;
+                        moore_neighbour_indices_vector[18] = moore_neighbour_indices_vector[0] + numNodesAcross*numNodesUp;
+                        moore_neighbour_indices_vector[25] = moore_neighbour_indices_vector[7] + numNodesAcross*numNodesUp;
+
+                        if (on_west_edge)
+                        {
+                            moore_neighbour_indices_vector[1] = moore_neighbour_indices_vector[1] + numNodesAcross;
+                            moore_neighbour_indices_vector[10] = moore_neighbour_indices_vector[10] + numNodesAcross;
+                            moore_neighbour_indices_vector[19] = moore_neighbour_indices_vector[19] + numNodesAcross;
+                        }
+                        if (on_east_edge)
+                        {
+                            moore_neighbour_indices_vector[7] = moore_neighbour_indices_vector[7] - numNodesAcross;
+                            moore_neighbour_indices_vector[16] = moore_neighbour_indices_vector[16] - numNodesAcross;
+                            moore_neighbour_indices_vector[25] = moore_neighbour_indices_vector[25] - numNodesAcross;
+                        }
+                    }
+
+                    if (on_south_edge)
+                    {
+                        moore_neighbour_indices_vector[4] = node_index + numNodesAcross*(numNodesUp-1);
+                        moore_neighbour_indices_vector[3] = moore_neighbour_indices_vector[4] - 1;
+                        moore_neighbour_indices_vector[5] = moore_neighbour_indices_vector[4] + 1;
+
+                        moore_neighbour_indices_vector[12] = moore_neighbour_indices_vector[3] - numNodesAcross*numNodesUp;
+                        moore_neighbour_indices_vector[13] = moore_neighbour_indices_vector[4] - numNodesAcross*numNodesUp;
+                        moore_neighbour_indices_vector[14] = moore_neighbour_indices_vector[5] - numNodesAcross*numNodesUp;
+
+                        moore_neighbour_indices_vector[21] = moore_neighbour_indices_vector[3] + numNodesAcross*numNodesUp;
+                        moore_neighbour_indices_vector[22] = moore_neighbour_indices_vector[4] + numNodesAcross*numNodesUp;
+                        moore_neighbour_indices_vector[23] = moore_neighbour_indices_vector[5] + numNodesAcross*numNodesUp;
+
+                        if (on_west_edge)
+                        {
+                            moore_neighbour_indices_vector[3] = moore_neighbour_indices_vector[3] + numNodesAcross;
+                            moore_neighbour_indices_vector[12] = moore_neighbour_indices_vector[12] + numNodesAcross;
+                            moore_neighbour_indices_vector[21] = moore_neighbour_indices_vector[21] + numNodesAcross;
+                        }
+                        if (on_east_edge)
+                        {
+                            moore_neighbour_indices_vector[5] = moore_neighbour_indices_vector[5] - numNodesAcross;
+                            moore_neighbour_indices_vector[14] = moore_neighbour_indices_vector[14] - numNodesAcross;
+                            moore_neighbour_indices_vector[23] = moore_neighbour_indices_vector[23] - numNodesAcross;
+                        }
+                    }
+                }
+
+                if (isPeriodicInZ)
+                {
+                    if (on_back_edge)
+                    {
+                        moore_neighbour_indices_vector[17] = node_index - numNodesAcross*numNodesUp*(numNodesDeep-1);
+                        moore_neighbour_indices_vector[20] = moore_neighbour_indices_vector[17] - 1;
+                        moore_neighbour_indices_vector[24] = moore_neighbour_indices_vector[17] + 1;
+
+                        moore_neighbour_indices_vector[21] = moore_neighbour_indices_vector[20] - numNodesAcross;
+                        moore_neighbour_indices_vector[22] = moore_neighbour_indices_vector[17] - numNodesAcross;
+                        moore_neighbour_indices_vector[23] = moore_neighbour_indices_vector[24] - numNodesAcross;
+
+                        moore_neighbour_indices_vector[19] = moore_neighbour_indices_vector[20] + numNodesAcross;
+                        moore_neighbour_indices_vector[18] = moore_neighbour_indices_vector[17] + numNodesAcross;
+                        moore_neighbour_indices_vector[25] = moore_neighbour_indices_vector[24] + numNodesAcross;
+
+                        if (on_west_edge)
+                        {
+                            moore_neighbour_indices_vector[19] = moore_neighbour_indices_vector[19] + numNodesAcross;
+                            moore_neighbour_indices_vector[20] = moore_neighbour_indices_vector[20] + numNodesAcross;
+                            moore_neighbour_indices_vector[21] = moore_neighbour_indices_vector[21] + numNodesAcross;
+                        }
+                        if (on_east_edge)
+                        {
+                            moore_neighbour_indices_vector[23] = moore_neighbour_indices_vector[23] - numNodesAcross;
+                            moore_neighbour_indices_vector[24] = moore_neighbour_indices_vector[24] - numNodesAcross;
+                            moore_neighbour_indices_vector[25] = moore_neighbour_indices_vector[25] - numNodesAcross;
+                        }
+
+                        if (on_south_edge)
+                        {
+                            moore_neighbour_indices_vector[21] = moore_neighbour_indices_vector[21] + numNodesAcross*numNodesUp;
+                            moore_neighbour_indices_vector[22] = moore_neighbour_indices_vector[22] + numNodesAcross*numNodesUp;
+                            moore_neighbour_indices_vector[23] = moore_neighbour_indices_vector[23] + numNodesAcross*numNodesUp;
+                        }
+
+                        if (on_north_edge)
+                        {
+                            moore_neighbour_indices_vector[18] = moore_neighbour_indices_vector[18] - numNodesAcross*numNodesUp;
+                            moore_neighbour_indices_vector[19] = moore_neighbour_indices_vector[19] - numNodesAcross*numNodesUp;
+                            moore_neighbour_indices_vector[25] = moore_neighbour_indices_vector[25] - numNodesAcross*numNodesUp;
+                        }
+                    }
+
+                    if (on_front_edge)
+                    {
+                        moore_neighbour_indices_vector[8] = node_index + numNodesAcross*numNodesUp*(numNodesDeep-1);
+                        moore_neighbour_indices_vector[11] = moore_neighbour_indices_vector[8] - 1;
+                        moore_neighbour_indices_vector[15] = moore_neighbour_indices_vector[8] + 1;
+
+                        moore_neighbour_indices_vector[12] = moore_neighbour_indices_vector[11] - numNodesAcross;
+                        moore_neighbour_indices_vector[13] = moore_neighbour_indices_vector[8] - numNodesAcross;
+                        moore_neighbour_indices_vector[14] = moore_neighbour_indices_vector[15] - numNodesAcross;
+
+                        moore_neighbour_indices_vector[10] = moore_neighbour_indices_vector[11] + numNodesAcross;
+                        moore_neighbour_indices_vector[9] = moore_neighbour_indices_vector[8] + numNodesAcross;
+                        moore_neighbour_indices_vector[16] = moore_neighbour_indices_vector[15] + numNodesAcross;
+
+                        if (on_west_edge)
+                        {
+                            moore_neighbour_indices_vector[10] = moore_neighbour_indices_vector[10] + numNodesAcross;
+                            moore_neighbour_indices_vector[11] = moore_neighbour_indices_vector[11] + numNodesAcross;
+                            moore_neighbour_indices_vector[12] = moore_neighbour_indices_vector[12] + numNodesAcross;
+                        }
+                        if (on_east_edge)
+                        {
+                            moore_neighbour_indices_vector[14] = moore_neighbour_indices_vector[14] - numNodesAcross;
+                            moore_neighbour_indices_vector[15] = moore_neighbour_indices_vector[15] - numNodesAcross;
+                            moore_neighbour_indices_vector[16] = moore_neighbour_indices_vector[16] - numNodesAcross;
+                        }
+
+                        if (on_south_edge)
+                        {
+                            moore_neighbour_indices_vector[12] = moore_neighbour_indices_vector[12] + numNodesAcross*numNodesUp;
+                            moore_neighbour_indices_vector[13] = moore_neighbour_indices_vector[13] + numNodesAcross*numNodesUp;
+                            moore_neighbour_indices_vector[14] = moore_neighbour_indices_vector[14] + numNodesAcross*numNodesUp;
+                        }
+
+                        if (on_north_edge)
+                        {
+                            moore_neighbour_indices_vector[9] = moore_neighbour_indices_vector[9] - numNodesAcross*numNodesUp;
+                            moore_neighbour_indices_vector[10] = moore_neighbour_indices_vector[10] - numNodesAcross*numNodesUp;
+                            moore_neighbour_indices_vector[16] = moore_neighbour_indices_vector[16] - numNodesAcross*numNodesUp;
+                        }
+                    }
+                }
+
+                if (isPeriodicInX)
+                {
+                    on_east_edge = false;
+                    on_west_edge = false;
+                }
+                if (isPeriodicInY)
+                {
+                    on_south_edge = false;
+                    on_north_edge = false;
+                }
+                if (isPeriodicInZ)
+                {
+                    on_front_edge = false;
+                    on_back_edge = false;
+                }
+
+                // Create a vector of booleans for which neighbours are available
+                // Use the order N, NW, W, SW, S, SE, E, NE
+                std::vector<bool> available_neighbours = std::vector<bool>(26, true);
+                available_neighbours[0] = !on_north_edge;
+                available_neighbours[1] = !(on_north_edge || on_west_edge);
+                available_neighbours[2] = !on_west_edge;
+                available_neighbours[3] = !(on_south_edge || on_west_edge);
+                available_neighbours[4] = !on_south_edge;
+                available_neighbours[5] = !(on_south_edge || on_east_edge);
+                available_neighbours[6] = !on_east_edge;
+                available_neighbours[7] = !(on_north_edge || on_east_edge);
+                available_neighbours[8] = !(on_front_edge);
+                for (unsigned i=9; i<17; i++)
+                {
+                    available_neighbours[i] = (available_neighbours[i-9] && !(on_front_edge));
+                }
+                available_neighbours[17] = !(on_back_edge);
+                for (unsigned i=18; i<26; i++)
+                {
+                    available_neighbours[i] = (available_neighbours[i-18] && !(on_back_edge));
+                }
+
+                // Using neighbour_indices_vector and available_neighbours, store the indices of all available neighbours to the set all_neighbours
+                for (unsigned i=0; i<26; i++)
+                {
+                    if (available_neighbours[i] && moore_neighbour_indices_vector[i] < numNodesAcross*numNodesUp*numNodesDeep)
+                    {
+                        assert(moore_neighbour_indices_vector[i] < nodes.size());
+                        moore_neighbours[node_index].insert(moore_neighbour_indices_vector[i]);
+                    }
+                }
+                break;
+            }
+            default:
+                NEVER_REACHED;
+        }
+
+        switch (DIM)
+        {
+            case 2:
+            {
+                assert(DIM == 2);
+                /*
+                 * This stores the available neighbours using the following numbering:
+                 *
+                 *        0
+                 *        |
+                 *        |
+                 *  1-----x-----3
+                 *        |
+                 *        |
+                 *        2
+                 */
+                // Create a vector of possible neighbouring node indices
+                std::vector<unsigned> von_neumann_neighbour_indices_vector(4, node_index);
+                von_neumann_neighbour_indices_vector[0] += numNodesAcross;
+                von_neumann_neighbour_indices_vector[1] -= 1;
+                von_neumann_neighbour_indices_vector[2] -= numNodesAcross;
+                von_neumann_neighbour_indices_vector[3] += 1;
+
+                // Work out whether this node lies on any edge of the mesh
+                bool on_south_edge = (node_index < numNodesAcross);
+                bool on_north_edge = ((int)node_index > (int)numNodesAcross*((int)numNodesUp - 1) - 1);
+                bool on_west_edge = (node_index%numNodesAcross == 0);
+                bool on_east_edge = (node_index%numNodesAcross == numNodesAcross - 1);
+
+                if (isPeriodicInX)
+                {
+                    if (on_west_edge)
+                    {
+                        von_neumann_neighbour_indices_vector[1] = node_index + numNodesAcross - 1;
+                        on_west_edge = false;
+                    }
+
+                    if (on_east_edge)
+                    {
+                        von_neumann_neighbour_indices_vector[3] = node_index - numNodesAcross + 1;
+                        on_east_edge = false;
+                    }
+                }
+
+                if (isPeriodicInY)
+                {
+                    if (on_north_edge)
+                    {
+                        von_neumann_neighbour_indices_vector[0] = node_index - numNodesAcross*(numNodesUp-1);
+                        on_north_edge = false;
+                    }
+
+                    if (on_south_edge)
+                    {
+                        von_neumann_neighbour_indices_vector[2] = node_index + numNodesAcross*(numNodesUp-1);
+                        on_south_edge = false;
+                    }
+                }
+
+                // Create a vector of booleans for which neighbours are available
+                // Use the order N, W, S, E
+                std::vector<bool> available_neighbours = std::vector<bool>(2*DIM, true);
+                available_neighbours[0] = !on_north_edge;
+                available_neighbours[1] = !on_west_edge;
+                available_neighbours[2] = !on_south_edge;
+                available_neighbours[3] = !on_east_edge;
+
+                // Using von_neumann_neighbour_indices_vector and available_neighbours, store the indices of all available neighbours to the set all_neighbours
+                for (unsigned i=0; i<4; i++)
+                {
+                    if (available_neighbours[i])
+                    {
+                        assert(von_neumann_neighbour_indices_vector[i] < nodes.size());
+                        von_neumann_neighbours[node_index].insert(von_neumann_neighbour_indices_vector[i]);
+                    }
+                }
+                break;
+            }
+            case 3:
+            {
+                assert(DIM == 3);
+
+                /*
+                 * This stores the available neighbours using the following numbering:
+                 *
+                 *        0  5
+                 *        | /
+                 *        |/
+                 *  1-----x-----3
+                 *      / |
+                 *     /  |
+                 *    4   2
+                 */
+                // Create a vector of possible neighbouring node indices
+                std::vector<unsigned> von_neumann_neighbour_indices_vector(6, node_index);
+                von_neumann_neighbour_indices_vector[0] += numNodesAcross;
+                von_neumann_neighbour_indices_vector[1] -= 1;
+                von_neumann_neighbour_indices_vector[2] -= numNodesAcross;
+                von_neumann_neighbour_indices_vector[3] += 1;
+                von_neumann_neighbour_indices_vector[4] -= numNodesAcross*numNodesUp;
+                von_neumann_neighbour_indices_vector[5] += numNodesAcross*numNodesUp;
+
+                // Work out whether this node lies on any edge of the mesh
+                bool on_south_edge = (node_index%(numNodesAcross*numNodesUp)<numNodesAcross);
+                bool on_north_edge = (node_index%(numNodesAcross*numNodesUp)>(numNodesAcross*numNodesUp-numNodesAcross-1));
+                bool on_west_edge = (node_index%numNodesAcross== 0);
+                bool on_east_edge = (node_index%numNodesAcross == numNodesAcross - 1);
+                bool on_front_edge = (node_index < numNodesAcross*numNodesUp);
+                bool on_back_edge = (node_index > numNodesAcross*numNodesUp*(numNodesDeep-1)-1);
+
+                if (isPeriodicInX)
+                {
+                    if (on_west_edge)
+                    {
+                        von_neumann_neighbour_indices_vector[1] = node_index + numNodesAcross - 1;
+                        on_west_edge = false;
+                    }
+
+                    if (on_east_edge)
+                    {
+                        von_neumann_neighbour_indices_vector[3] = node_index - numNodesAcross + 1;
+                        on_east_edge = false;
+                    }
+                }
+
+                if (isPeriodicInY)
+                {
+                    if (on_north_edge)
+                    {
+                        von_neumann_neighbour_indices_vector[0] = node_index - numNodesAcross*(numNodesUp-1);
+                        on_north_edge = false;
+                    }
+
+                    if (on_south_edge)
+                    {
+                        von_neumann_neighbour_indices_vector[2] = node_index + numNodesAcross*(numNodesUp-1);
+                        on_south_edge = false;
+                    }
+                }
+
+                if (isPeriodicInZ)
+                {
+                    if (on_front_edge)
+                    {
+                        von_neumann_neighbour_indices_vector[4] = node_index + numNodesAcross*numNodesUp*(numNodesDeep-1);
+                        on_front_edge = false;
+                    }
+
+                    if (on_back_edge)
+                    {
+                        von_neumann_neighbour_indices_vector[5] = node_index - numNodesAcross*numNodesUp*(numNodesDeep-1);
+                        on_back_edge = false;
+                    }
+                }
+
+                // Create a vector of booleans for which neighbours are available
+                // Use the order N, W, S, E, F, B
+                std::vector<bool> available_neighbours = std::vector<bool>(2*DIM, true);
+                available_neighbours[0] = !on_north_edge;
+                available_neighbours[1] = !on_west_edge;
+                available_neighbours[2] = !on_south_edge;
+                available_neighbours[3] = !on_east_edge;
+                available_neighbours[4] = !on_front_edge;
+                available_neighbours[5] = !on_back_edge;
+
+                // Using von_neumann_neighbour_indices_vector and available_neighbours, store the indices of all available neighbours to the set all_neighbours
+                for (unsigned i=0; i<6; i++)
+                {
+                    if (available_neighbours[i] && von_neumann_neighbour_indices_vector[i]<numNodesAcross*numNodesUp*numNodesDeep)
+                    {
+                        assert(von_neumann_neighbour_indices_vector[i] < nodes.size());
+                        von_neumann_neighbours[node_index].insert(von_neumann_neighbour_indices_vector[i]);
+                    }
+                }
+                break;
+            }
+            default:
+                NEVER_REACHED;
+        }
+    
+    }}
+
+    for (unsigned i=0; i<num_voxels; i++)
+    {
+        //std::cout << "Moore neighbours for voxel " << i << ": ";
+        neighbour_indices = von_neumann_neighbours[i];
+        neighbour_indices2 = von_neumann_neighbours2[i];
+        // If the two sets are not equal, print out the indices of the neighbours
+        if (neighbour_indices != neighbour_indices2)
+        {
+            std::cout << "Error: Moore neighbours for voxel " << i << " are not equal\n";
+            for (std::set<unsigned>::iterator it = neighbour_indices.begin(); it != neighbour_indices.end(); ++it)
+            {
+                std::cout << *it << " ";
+            }
+            std::cout << "\n";
+            for (std::set<unsigned>::iterator it = neighbour_indices2.begin(); it != neighbour_indices2.end(); ++it)
+            {
+                std::cout << *it << " ";
+            }
+            std::cout << "\n";
+        }
+
+
+        for (std::set<unsigned>::iterator it = neighbour_indices.begin(); it != neighbour_indices.end(); ++it)
+        {
+            //std::cout << *it << " ";
+        }
+        //std::cout << "\n";
+    }
+    mpMesh = boost::make_shared<PottsMesh<DIM> >(nodes, elements, von_neumann_neighbours2, moore_neighbours);
 }
 
 template<unsigned DIM>

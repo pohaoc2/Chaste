@@ -325,9 +325,11 @@ std::set<unsigned> PottsMeshReader<SPACE_DIM>::GetNextVonNeumannNeighbors()
     {
         EXCEPTION("Data for node " << mVonNeumannRead << " missing");
     }
-
+    unsigned von_neumann_data_size;
+    buffer_stream >> von_neumann_data_size;
     double von_neumann_index;
-    for (unsigned i=0; i<4; i++)
+
+    for (unsigned i=0; i<von_neumann_data_size; i++)
     {
         buffer_stream >> von_neumann_index;
         von_neumann_data.insert(von_neumann_index);

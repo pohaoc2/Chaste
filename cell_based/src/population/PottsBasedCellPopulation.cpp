@@ -261,7 +261,7 @@ void PottsBasedCellPopulation<DIM>::UpdateCellLocations(double dt)
         // Randomly permute mUpdateRuleCollection
         p_gen->Shuffle(this->mUpdateRuleCollection);
     }
-
+    bool all_neighbours_empty = true;
     for (unsigned i=0; i<num_nodes*mNumSweepsPerTimestep; i++)
     {
         unsigned node_index;
@@ -283,10 +283,14 @@ void PottsBasedCellPopulation<DIM>::UpdateCellLocations(double dt)
 
         // Find a random available neighbouring node to overwrite current site
         std::set<unsigned> neighbouring_node_indices = mpPottsMesh->GetMooreNeighbouringNodeIndices(node_index);
+        //std::cout << "neighbouring_node_indices.size() = " << neighbouring_node_indices.size();
+        //std::cout << " node_index = " << node_index << std::endl;
+
         unsigned neighbour_location_index;
         
         if (!neighbouring_node_indices.empty())
         {
+            all_neighbours_empty = false;
             unsigned num_neighbours = neighbouring_node_indices.size();
             unsigned chosen_neighbour = p_gen->randMod(num_neighbours);
 
@@ -345,6 +349,10 @@ void PottsBasedCellPopulation<DIM>::UpdateCellLocations(double dt)
                 }
             }
         }
+    }
+    if (all_neighbours_empty)
+    {
+        EXCEPTION("All neighbouring nodes are empty. This is likely due to an error in the mesh generation.");
     }
 }
 

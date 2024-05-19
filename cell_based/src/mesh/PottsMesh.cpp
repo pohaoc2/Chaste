@@ -49,8 +49,27 @@ PottsMesh<DIM>::PottsMesh(std::vector<Node<DIM>*> nodes,
     // Verify the same size of nodes and neighbour information.
     if ((vonNeumannNeighbouringNodeIndices.size() != nodes.size()) || (mooreNeighbouringNodeIndices.size() != nodes.size()))
     {
-        //EXCEPTION("Nodes and neighbour information for a Potts mesh need to be the same length.");
+        EXCEPTION("Nodes and neighbour information for a Potts mesh need to be the same length.");
     }
+    
+    //std::cout << "moore size: " << mooreNeighbouringNodeIndices.size() << std::endl;
+
+    //std::set<unsigned> neighbour_indices = this->GetMooreNeighbouringNodeIndices(0);
+    //std::cout << "neighbour size: " << neighbour_indices.size() << std::endl;
+    /*
+    for (std::set<unsigned>::iterator iter = neighbour_indices.begin();
+         iter != neighbour_indices.end();
+         iter++)
+    {
+        std::cout << *iter << std::endl;
+    }*/
+
+    // Print size of each neighbour set
+    for (unsigned i=0; i<mooreNeighbouringNodeIndices.size(); i++)
+    {
+        //std::cout << "moore size: " << mooreNeighbouringNodeIndices[i].size() << std::endl;
+    }
+
     mVonNeumannNeighbouringNodeIndices = vonNeumannNeighbouringNodeIndices;
     mMooreNeighbouringNodeIndices = mooreNeighbouringNodeIndices;
 
