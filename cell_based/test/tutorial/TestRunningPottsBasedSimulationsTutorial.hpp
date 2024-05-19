@@ -155,7 +155,7 @@ public:
         /* We then pass in the cell population into an `OnLatticeSimulation`,
          * and set the output directory and end time.*/
         OnLatticeSimulation<2> simulator(cell_population);
-        simulator.SetOutputDirectory("PottsBasedMonolayerCustom");
+        simulator.SetOutputDirectory("PottsBasedMonolayerCustomNonPbc");
         simulator.SetEndTime(50.0);
         /*
          * The default timestep is 0.1, but can be changed using the below command. The timestep is used in conjunction with the "Temperature" and

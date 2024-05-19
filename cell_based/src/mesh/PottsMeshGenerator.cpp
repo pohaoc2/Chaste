@@ -45,7 +45,7 @@ PottsMeshGenerator<DIM>::PottsMeshGenerator(PottsMeshReader<DIM>& rMeshReader)
     unsigned num_nodes = rMeshReader.GetNumNodes();
     unsigned num_elements = rMeshReader.GetNumElements();
     unsigned num_voxels = rMeshReader.GetNumVoxels();
-    std::cout << "num_voxels: " << num_voxels << "\n";
+
 
 
     rMeshReader.Reset();
@@ -93,8 +93,8 @@ PottsMeshGenerator<DIM>::PottsMeshGenerator(PottsMeshReader<DIM>& rMeshReader)
     unsigned numNodesAcross = 61;
     unsigned numNodesUp = 61;
     unsigned numNodesDeep = 1;
-    bool isPeriodicInX = true;
-    bool isPeriodicInY = true;
+    bool isPeriodicInX = false;
+    bool isPeriodicInY = false;
     bool isPeriodicInZ = true;
 
     
@@ -108,15 +108,11 @@ PottsMeshGenerator<DIM>::PottsMeshGenerator(PottsMeshReader<DIM>& rMeshReader)
             //std::cout << *it << " ";
         }
         //std::cout << "\n";
-        if (neighbour_indices.size() != 8)
-        {
-            std::cout << "Error: voxel " << i << " has " << neighbour_indices.size() << " Moore neighbours\n";
-        }
         moore_neighbours2[i] = neighbour_indices;
         neighbour_indices = rMeshReader.GetNextVonNeumannNeighbors();
         von_neumann_neighbours2[i] = neighbour_indices;
     }
-    if(true){
+    if(false){
     for (unsigned node_index=0; node_index<num_nodes; node_index++)
     {
         // Clear the set of neighbouring node indices
@@ -237,6 +233,8 @@ PottsMeshGenerator<DIM>::PottsMeshGenerator(PottsMeshReader<DIM>& rMeshReader)
                 {
                     if (available_neighbours[i])
                     {
+                        //std::cout << moore_neighbour_indices_vector[i] << " ";
+                        //std::cout << nodes.size() << std::endl;
                         assert(moore_neighbour_indices_vector[i] < nodes.size());
                         moore_neighbours[node_index].insert(moore_neighbour_indices_vector[i]);
                     }
@@ -700,7 +698,7 @@ PottsMeshGenerator<DIM>::PottsMeshGenerator(PottsMeshReader<DIM>& rMeshReader)
         }
     
     }}
-
+    if(false){
     for (unsigned i=0; i<num_voxels; i++)
     {
         //std::cout << "Moore neighbours for voxel " << i << ": ";
@@ -728,8 +726,10 @@ PottsMeshGenerator<DIM>::PottsMeshGenerator(PottsMeshReader<DIM>& rMeshReader)
             //std::cout << *it << " ";
         }
         //std::cout << "\n";
+
     }
-    mpMesh = boost::make_shared<PottsMesh<DIM> >(nodes, elements, von_neumann_neighbours2, moore_neighbours);
+    }
+    mpMesh = boost::make_shared<PottsMesh<DIM> >(nodes, elements, von_neumann_neighbours2, moore_neighbours2);
 }
 
 template<unsigned DIM>
