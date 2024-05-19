@@ -40,16 +40,18 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/shared_ptr.hpp>
 
 template<unsigned DIM>
-PottsMeshGenerator<DIM>::PottsMeshGenerator(AbstractMeshReader<DIM, DIM>& rMeshReader)
+PottsMeshGenerator<DIM>::PottsMeshGenerator(PottsMeshReader<DIM>& rMeshReader)
 {
     unsigned num_nodes = rMeshReader.GetNumNodes();
     unsigned num_elements = rMeshReader.GetNumElements();
+    unsigned num_voxels = rMeshReader.GetNumVoxels();
     rMeshReader.Reset();
     std::vector<Node<DIM>*> nodes;
     std::vector<PottsElement<DIM>*> elements;
     std::vector<std::set<unsigned> > moore_neighbours;
     std::vector<std::set<unsigned> > von_neumann_neighbours;
-    
+    moore_neighbours.resize(num_nodes);
+    von_neumann_neighbours.resize(num_nodes);
 
     // Add nodes
     std::vector<double> node_data;
@@ -78,9 +80,17 @@ PottsMeshGenerator<DIM>::PottsMeshGenerator(AbstractMeshReader<DIM, DIM>& rMeshR
         elements.push_back(p_element);
     }
 
+    // Add neighbours
+    std::set<unsigned> neighbour_indices;
 
-    moore_neighbours.resize(num_nodes);
-    von_neumann_neighbours.resize(num_nodes);
+    for (unsigned i=0; i<num_voxels; i++)
+    {
+        neighbour_indices = rMeshReader.GetNextMooreNeighbors();
+        moore_neighbours.push_back(neighbour_indices);
+        //neighbour_indices = rMeshReader.GetNextVonNeumannNeighbors();
+        //von_neumann_neighbours.push_back(neighbour_indices);
+    }
+
     mpMesh = boost::make_shared<PottsMesh<DIM> >(nodes, elements, von_neumann_neighbours, moore_neighbours);
 }
 

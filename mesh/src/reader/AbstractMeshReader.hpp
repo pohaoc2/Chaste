@@ -116,6 +116,7 @@ public:
 
     /** @return a vector of the coordinates of each node in turn */
     virtual std::vector<double> GetNextNode()=0;
+    
 
     /** Resets pointers to beginning*/
     virtual void Reset()=0;

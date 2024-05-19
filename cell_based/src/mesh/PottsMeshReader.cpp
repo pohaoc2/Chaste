@@ -32,7 +32,7 @@ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
 OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 */
-
+#include "iostream"
 #include "PottsMeshReader.hpp"
 
 template<unsigned SPACE_DIM>
@@ -43,10 +43,15 @@ PottsMeshReader<SPACE_DIM>::PottsMeshReader(std::string pathBaseName)
       mNumElements(0),
       mNodesRead(0),
       mElementsRead(0),
+      mMooreRead(0),
+      mVonNeumannRead(0),
+      mNumVoxels(0),
       mNumElementAttributes(0)
+
 {
     OpenFiles();
     ReadHeaders();
+    ReadNumVoxels();
 }
 
 template<unsigned SPACE_DIM>
@@ -67,6 +72,11 @@ unsigned PottsMeshReader<SPACE_DIM>::GetNumElementAttributes() const
     return mNumElementAttributes;
 }
 
+template<unsigned SPACE_DIM>
+unsigned PottsMeshReader<SPACE_DIM>::GetNumVoxels() const
+{
+    return mNumVoxels;
+}
 template<unsigned SPACE_DIM>
 ElementData PottsMeshReader<SPACE_DIM>::GetNextFaceData()
 {
@@ -234,6 +244,99 @@ void PottsMeshReader<SPACE_DIM>::ReadHeaders()
 
     element_buffer_stream >> mNumElements >> mNumElementAttributes;
 }
+
+template<unsigned SPACE_DIM>
+void PottsMeshReader<SPACE_DIM>::ReadNumVoxels()
+{
+    std::string moore_file_name = mFilesBaseName + ".moore";
+    mMooreFile.open(moore_file_name.c_str());
+    if (!mMooreFile.is_open())
+    {
+        EXCEPTION("Could not open data file: " + moore_file_name);
+    }
+
+    std::string buffer;
+    GetNextLineFromStream(mMooreFile, buffer);
+    std::stringstream buffer_stream(buffer);
+    buffer_stream >> mNumVoxels;
+    mMooreFile.close();
+
+    mMooreFile.open(moore_file_name.c_str());
+    if (!mMooreFile.is_open())
+    {
+        EXCEPTION("Could not open data file: " + moore_file_name);
+    }
+    std::string von_file_name = mFilesBaseName + ".von_neumann";
+    mVonNeumannFile.open(von_file_name.c_str());
+    if (!mVonNeumannFile.is_open())
+    {
+        EXCEPTION("Could not open data file: " + von_file_name);
+    }
+    GetNextLineFromStream(mMooreFile, buffer);
+    GetNextLineFromStream(mVonNeumannFile, buffer);
+}
+
+template<unsigned SPACE_DIM>
+std::set<unsigned> PottsMeshReader<SPACE_DIM>::GetNextMooreNeighbors()
+{
+
+    std::set<unsigned> moore_data;
+    std::string buffer;
+    GetNextLineFromStream(mMooreFile, buffer);
+    std::stringstream buffer_stream(buffer);
+
+    unsigned index;
+    buffer_stream >> index;
+
+    unsigned offset = mIndexFromZero ? 0 : 1;
+    if (index != mMooreRead + offset)
+    {
+        EXCEPTION("Data for node " << mMooreRead << " missing");
+    }
+
+    unsigned moore_index;
+    unsigned moore_data_size;
+    buffer_stream >> moore_data_size;
+
+    for (unsigned i=0; i<moore_data_size; i++)
+    {
+        buffer_stream >> moore_index;
+        moore_data.insert(moore_index);
+    }
+
+    mMooreRead++;
+    return moore_data;
+}
+
+template<unsigned SPACE_DIM>
+std::set<unsigned> PottsMeshReader<SPACE_DIM>::GetNextVonNeumannNeighbors()
+{
+    std::set<unsigned> von_neumann_data;
+
+    std::string buffer;
+    GetNextLineFromStream(mVonNeumannFile, buffer);
+    std::stringstream buffer_stream(buffer);
+
+    unsigned index;
+    buffer_stream >> index;
+
+    unsigned offset = mIndexFromZero ? 0 : 1;    
+    if (index != mVonNeumannRead + offset)
+    {
+        EXCEPTION("Data for node " << mVonNeumannRead << " missing");
+    }
+
+    double von_neumann_index;
+    for (unsigned i=0; i<4; i++)
+    {
+        buffer_stream >> von_neumann_index;
+        von_neumann_data.insert(von_neumann_index);
+    }
+
+    mVonNeumannRead++;
+    return von_neumann_data;
+}
+
 
 template<unsigned SPACE_DIM>
 void PottsMeshReader<SPACE_DIM>::CloseFiles()

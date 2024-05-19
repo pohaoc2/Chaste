@@ -72,6 +72,9 @@ private:
     /** The elements file for the mesh. */
     std::ifstream mElementsFile;
 
+    std::ifstream mMooreFile;
+    std::ifstream mVonNeumannFile;
+
     /** True if input data are numbered from zero, false otherwise. */
     bool mIndexFromZero;
 
@@ -87,8 +90,12 @@ private:
     /** Number of elements read in by the reader. */
     unsigned mElementsRead;
 
+    unsigned mMooreRead;
+    unsigned mVonNeumannRead;
+
     /** Is the number of attributes stored at each node. */
     unsigned mNumNodeAttributes;
+    unsigned mNumVoxels;
 
     /** Is the number of attributes stored for each element. */
     unsigned mNumElementAttributes;
@@ -112,6 +119,8 @@ private:
      * Read the file headers to determine node and element numbers and attributes.
      */
     void ReadHeaders();
+
+    void ReadNumVoxels();
 
     /**
      * Close node and element files.
@@ -151,6 +160,8 @@ public:
      */
     unsigned GetNumNodes() const;
 
+    unsigned GetNumVoxels() const;
+
     /**
      * @return the number of attributes in the mesh
      */
@@ -175,6 +186,8 @@ public:
      * @return the coordinates of each node in turn.
      */
     std::vector<double> GetNextNode();
+    std::set<unsigned> GetNextMooreNeighbors();
+    std::set<unsigned> GetNextVonNeumannNeighbors();
 
     /**
      * @return the nodes of each element (and any attribute information, if there is any) in turn.

@@ -91,7 +91,7 @@ public:
                        bool isPeriodicInY = false,
                        bool isPeriodicInZ = false);
 
-    PottsMeshGenerator(AbstractMeshReader<DIM, DIM>& rMeshReader);
+    PottsMeshGenerator(PottsMeshReader<DIM>& rMeshReader);
 
     /**
      * Empty destructor.

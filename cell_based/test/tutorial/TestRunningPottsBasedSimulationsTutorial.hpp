@@ -197,8 +197,6 @@ public:
         /* To run the simulation, we call `Solve()`. */
         simulator.Solve();
 
-        /* The next two lines are for test purposes only and are not part of this tutorial. If different simulation input parameters are being explored
-         * the lines should be removed.*/
     }
 
     /*

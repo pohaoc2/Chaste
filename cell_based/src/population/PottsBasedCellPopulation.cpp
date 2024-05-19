@@ -284,7 +284,7 @@ void PottsBasedCellPopulation<DIM>::UpdateCellLocations(double dt)
         // Find a random available neighbouring node to overwrite current site
         std::set<unsigned> neighbouring_node_indices = mpPottsMesh->GetMooreNeighbouringNodeIndices(node_index);
         unsigned neighbour_location_index;
-
+        
         if (!neighbouring_node_indices.empty())
         {
             unsigned num_neighbours = neighbouring_node_indices.size();
